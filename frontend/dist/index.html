@@ -1,212 +1,74 @@
 <!DOCTYPE html>
 <html lang="sr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Research Institute System</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div id="app">
-        <!-- Login Screen -->
-        <div id="loginScreen" class="screen active">
-            <div class="login-container">
-                <div class="login-header">
-                    <h1>Istraživačko-razvojni centar</h1>
-                    <h2>Informacioni sistem</h2>
-                </div>
-                <form id="loginForm" class="login-form">
-                    <div class="form-group">
-                        <label for="username">Korisničko ime:</label>
-                        <input type="text" id="username" name="username" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Lozinka:</label>
-                        <input type="password" id="password" name="password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Prijavi se</button>
-                    <div id="loginError" class="error-message"></div>
-                       <div id="loginStatus" class="status-message"></div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Main Dashboard -->
-        <div id="dashboardScreen" class="screen">
-            <header class="header">
-                <div class="header-content">
-                    <h1>Istraživačko-razvojni centar</h1>
-                    <div class="user-info">
-                        <span id="userWelcome"></span>
-                        <button id="logoutBtn" class="btn btn-secondary">Odjavi se</button>
-                    </div>
-                </div>
-            </header>
-
-            <nav class="sidebar">
-                <div class="nav-section">
-                    <h3>Glavni moduli</h3>
-                    <a href="#" class="nav-item" data-section="projects">
-                        <i class="icon">📁</i>
-                        <span>Projekti</span>
-                    </a>
-                    <a href="#" class="nav-item" data-section="documents">
-                        <i class="icon">📄</i>
-                        <span>Dokumenti</span>
-                    </a>
-                    <a href="#" class="nav-item" data-section="documentation">
-                        <i class="icon">📋</i>
-                        <span>Projektna dokumentacija</span>
-                    </a>
-                </div>
-                
-                <div class="nav-section admin-only" style="display: none;">
-                    <h3>Administracija</h3>
-                    <a href="#" class="nav-item" data-section="users">
-                        <i class="icon">👥</i>
-                        <span>Korisnici</span>
-                    </a>
-                </div>
-            </nav>
-
-            <main class="main-content">
-                <!-- Projects Section -->
-                <div id="projectsSection" class="content-section active">
-                    <div class="section-header">
-                        <h2>Moji projekti</h2>
-                        <button id="createProjectBtn" class="btn btn-primary manager-only" style="display: none;">
-                            Kreiraj novi projekat
-                        </button>
-                    </div>
-                    <div id="projectsList" class="projects-grid">
-                        <!-- Projects will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- Documents Section -->
-                <div id="documentsSection" class="content-section">
-                    <div class="section-header">
-                        <h2>Upravljanje dokumentima</h2>
-                        <button id="uploadDocumentBtn" class="btn btn-primary">
-                            Dodaj dokument
-                        </button>
-                    </div>
-                    <div class="search-bar">
-                        <input type="text" id="documentSearch" placeholder="Pretraži dokumente...">
-                        <button id="searchBtn" class="btn btn-secondary">Pretraži</button>
-                    </div>
-                    <div id="documentsList" class="documents-list">
-                        <!-- Documents will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- Documentation Section -->
-                <div id="documentationSection" class="content-section">
-                    <div class="section-header">
-                        <h2>Projektna dokumentacija</h2>
-                    </div>
-                    <div id="documentationContent">
-                        <p>Selektujte projekat da vidite dokumentaciju.</p>
-                    </div>
-                </div>
-
-                <!-- Users Section (Admin only) -->
-                <div id="usersSection" class="content-section">
-                    <div class="section-header">
-                        <h2>Upravljanje korisnicima</h2>
-                        <button id="createUserBtn" class="btn btn-primary">
-                            Kreiraj korisnika
-                        </button>
-                    </div>
-                    <div id="usersList" class="users-list">
-                        <!-- Users will be loaded here -->
-                    </div>
-                </div>
-            </main>
-        </div>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Istraživačko razvojni centar - Informacioni sistem</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: #f8f9fa;
+      }
+      
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+        z-index: 9999;
+      }
+      
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-BH-0AP-d.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-NhINoH1p.css">
+  </head>
+  <body>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>Učitavanje sistema...</div>
     </div>
-
-    <!-- Modals -->
-    <div id="createProjectModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Kreiraj novi projekat</h3>
-                <span class="close">&times;</span>
-            </div>
-            <form id="createProjectForm">
-                <div class="form-group">
-                    <label for="projectName">Naziv projekta:</label>
-                    <input type="text" id="projectName" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="projectDescription">Opis:</label>
-                    <textarea id="projectDescription" name="description" rows="4"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="projectStartDate">Datum početka:</label>
-                        <input type="date" id="projectStartDate" name="startDate">
-                    </div>
-                    <div class="form-group">
-                        <label for="projectEndDate">Datum završetka:</label>
-                        <input type="date" id="projectEndDate" name="endDate">
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('createProjectModal')">Odustani</button>
-                    <button type="submit" class="btn btn-primary">Kreiraj</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="createUserModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Kreiraj korisnika</h3>
-                <span class="close">&times;</span>
-            </div>
-            <form id="createUserForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="userFirstName">Ime:</label>
-                        <input type="text" id="userFirstName" name="firstName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="userLastName">Prezime:</label>
-                        <input type="text" id="userLastName" name="lastName" required>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="userUsername">Korisničko ime:</label>
-                    <input type="text" id="userUsername" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="userEmail">Email:</label>
-                    <input type="email" id="userEmail" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="userRole">Uloga:</label>
-                    <select id="userRole" name="roleId" required>
-                        <option value="1">Administrator</option>
-                        <option value="2">Rukovodilac projekta</option>
-                        <option value="3">Istraživač</option>
-                        <option value="4">Organizator projekta</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="tempPassword">Privremena lozinka:</label>
-                    <input type="text" id="tempPassword" name="tempPassword" readonly>
-                    <button type="button" id="generatePasswordBtn" class="btn btn-secondary">Generiši</button>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal('createUserModal')">Odustani</button>
-                    <button type="submit" class="btn btn-primary">Kreiraj</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-</body>
+    <div id="app"></div>
+    
+    <script>
+      // Hide loading screen when Vue app is ready
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.opacity = '0';
+            loading.style.transition = 'opacity 0.5s ease';
+            setTimeout(function() {
+              loading.style.display = 'none';
+            }, 500);
+          }
+        }, 1000);
+      });
+    </script>
+    
+  </body>
 </html>
