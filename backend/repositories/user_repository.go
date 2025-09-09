@@ -2,8 +2,9 @@ package repositories
 
 import (
 	"database/sql"
-	"github.com/cane/research-institute-system/backend/models"
 	"time"
+
+	"github.com/cane/research-institute-system/backend/models"
 )
 
 type UserRepository struct {
@@ -23,28 +24,28 @@ func (r *UserRepository) GetByID(id int) (*models.User, error) {
 		JOIN Uloge u ON k.uloga_id = u.uloga_id
 		WHERE k.korisnik_id = $1
 	`
-	
+
 	var user models.User
 	var role models.Role
 	var lastLogin sql.NullTime
-	
+
 	err := r.db.QueryRow(query, id).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.FirstName, &user.LastName, &user.RoleID, &user.Status,
-		&lastLogin, &user.CreatedAt, &role.Name,
+		&user.KorisnikID, &user.KorisnickoIme, &user.Email, &user.HashSifre,
+		&user.Ime, &user.Prezime, &user.UlogaID, &user.Status,
+		&lastLogin, &user.KreiranDatuma, &role.NazivUloge,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if lastLogin.Valid {
-		user.LastLogin = &lastLogin.Time
+		user.PoslednajaPrijava = &lastLogin.Time
 	}
-	
-	role.ID = user.RoleID
-	user.Role = &role
-	
+
+	role.UlogaID = user.UlogaID
+	user.NazivUloge = role.NazivUloge
+
 	return &user, nil
 }
 
@@ -57,28 +58,28 @@ func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
 		JOIN Uloge u ON k.uloga_id = u.uloga_id
 		WHERE k.korisnicko_ime = $1
 	`
-	
+
 	var user models.User
 	var role models.Role
 	var lastLogin sql.NullTime
-	
+
 	err := r.db.QueryRow(query, username).Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.FirstName, &user.LastName, &user.RoleID, &user.Status,
-		&lastLogin, &user.CreatedAt, &role.Name,
+		&user.KorisnikID, &user.KorisnickoIme, &user.Email, &user.HashSifre,
+		&user.Ime, &user.Prezime, &user.UlogaID, &user.Status,
+		&lastLogin, &user.KreiranDatuma, &role.NazivUloge,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if lastLogin.Valid {
-		user.LastLogin = &lastLogin.Time
+		user.PoslednajaPrijava = &lastLogin.Time
 	}
-	
-	role.ID = user.RoleID
-	user.Role = &role
-	
+
+	role.UlogaID = user.UlogaID
+	user.NazivUloge = role.NazivUloge
+
 	return &user, nil
 }
 
@@ -88,10 +89,10 @@ func (r *UserRepository) Create(user *models.User) error {
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING korisnik_id, kreiran_datuma
 	`
-	
-	err := r.db.QueryRow(query, user.Username, user.Email, user.PasswordHash,
-		user.FirstName, user.LastName, user.RoleID, user.Status).Scan(&user.ID, &user.CreatedAt)
-	
+
+	err := r.db.QueryRow(query, user.KorisnickoIme, user.Email, user.HashSifre,
+		user.Ime, user.Prezime, user.UlogaID, user.Status).Scan(&user.KorisnikID, &user.KreiranDatuma)
+
 	return err
 }
 
@@ -101,10 +102,10 @@ func (r *UserRepository) Update(user *models.User) error {
 		SET korisnicko_ime = $1, email = $2, ime = $3, prezime = $4, uloga_id = $5, status = $6
 		WHERE korisnik_id = $7
 	`
-	
-	_, err := r.db.Exec(query, user.Username, user.Email, user.FirstName,
-		user.LastName, user.RoleID, user.Status, user.ID)
-	
+
+	_, err := r.db.Exec(query, user.KorisnickoIme, user.Email, user.Ime,
+		user.Prezime, user.UlogaID, user.Status, user.KorisnikID)
+
 	return err
 }
 
@@ -129,62 +130,62 @@ func (r *UserRepository) GetAll() ([]models.User, error) {
 		JOIN Uloge u ON k.uloga_id = u.uloga_id
 		ORDER BY k.kreiran_datuma DESC
 	`
-	
+
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var users []models.User
-	
+
 	for rows.Next() {
 		var user models.User
 		var role models.Role
 		var lastLogin sql.NullTime
-		
+
 		err := rows.Scan(
-			&user.ID, &user.Username, &user.Email, &user.FirstName,
-			&user.LastName, &user.RoleID, &user.Status, &lastLogin,
-			&user.CreatedAt, &role.Name,
+			&user.KorisnikID, &user.KorisnickoIme, &user.Email, &user.Ime,
+			&user.Prezime, &user.UlogaID, &user.Status, &lastLogin,
+			&user.KreiranDatuma, &role.NazivUloge,
 		)
-		
+
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if lastLogin.Valid {
-			user.LastLogin = &lastLogin.Time
+			user.PoslednajaPrijava = &lastLogin.Time
 		}
-		
-		role.ID = user.RoleID
-		user.Role = &role
-		
+
+		role.UlogaID = user.UlogaID
+		user.NazivUloge = role.NazivUloge
+
 		users = append(users, user)
 	}
-	
+
 	return users, nil
 }
 
 func (r *UserRepository) GetRoles() ([]models.Role, error) {
 	query := `SELECT uloga_id, naziv_uloge FROM Uloge ORDER BY uloga_id`
-	
+
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var roles []models.Role
-	
+
 	for rows.Next() {
 		var role models.Role
-		err := rows.Scan(&role.ID, &role.Name)
+		err := rows.Scan(&role.UlogaID, &role.NazivUloge)
 		if err != nil {
 			return nil, err
 		}
 		roles = append(roles, role)
 	}
-	
+
 	return roles, nil
 }

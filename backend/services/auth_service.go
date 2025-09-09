@@ -6,9 +6,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/cane/research-institute-system/backend/models"
 	"github.com/cane/research-institute-system/backend/repositories"
-	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -55,7 +56,7 @@ func (s *AuthService) Login(req LoginRequest) (*LoginResponse, error) {
 		}, nil
 	}
 
-	if !s.verifyPassword(req.Password, user.PasswordHash) {
+	if !s.verifyPassword(req.Password, user.HashSifre) {
 		return &LoginResponse{
 			Success: false,
 			Message: "Neispravno korisničko ime ili lozinka",
@@ -63,10 +64,10 @@ func (s *AuthService) Login(req LoginRequest) (*LoginResponse, error) {
 	}
 
 	// Update last login
-	s.userRepo.UpdateLastLogin(user.ID)
+	s.userRepo.UpdateLastLogin(user.KorisnikID)
 
 	// Clear password hash from response
-	user.PasswordHash = ""
+	user.HashSifre = ""
 
 	return &LoginResponse{
 		User:    user,
@@ -76,12 +77,12 @@ func (s *AuthService) Login(req LoginRequest) (*LoginResponse, error) {
 }
 
 func (s *AuthService) CreateUser(user *models.User, tempPassword string) error {
-	if user.Username == "" || user.Email == "" {
+	if user.KorisnickoIme == "" || user.Email == "" {
 		return errors.New("korisničko ime i email su obavezni")
 	}
 
 	// Check if user already exists
-	existingUser, _ := s.userRepo.GetByUsername(user.Username)
+	existingUser, _ := s.userRepo.GetByUsername(user.KorisnickoIme)
 	if existingUser != nil {
 		return errors.New("korisnik sa tim korisničkim imenom već postoji")
 	}
@@ -92,7 +93,7 @@ func (s *AuthService) CreateUser(user *models.User, tempPassword string) error {
 		return err
 	}
 
-	user.PasswordHash = hashedPassword
+	user.HashSifre = hashedPassword
 	user.Status = "aktivan"
 
 	return s.userRepo.Create(user)
@@ -101,7 +102,7 @@ func (s *AuthService) CreateUser(user *models.User, tempPassword string) error {
 func (s *AuthService) ResetPassword(userID int) (string, error) {
 	// Generate temporary password
 	tempPassword := s.generateTempPassword()
-	
+
 	hashedPassword, err := s.hashPassword(tempPassword)
 	if err != nil {
 		return "", err

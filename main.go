@@ -6,14 +6,15 @@ import (
 	"embed"
 	"errors"
 	"log"
+
 	"github.com/cane/research-institute-system/backend/models"
 	"github.com/cane/research-institute-system/backend/repositories"
 	"github.com/cane/research-institute-system/backend/services"
 
+	_ "github.com/lib/pq"
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	_ "github.com/lib/pq"
 )
 
 //go:embed all:frontend/dist
@@ -37,7 +38,7 @@ func NewApp() *App {
 // OnStartup is called when the app starts up
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
-	
+
 	// Initialize database connection
 	db, err := sql.Open("postgres", "postgres://username:password@localhost/research_institute?sslmode=disable")
 	if err != nil {
@@ -45,13 +46,13 @@ func (a *App) OnStartup(ctx context.Context) {
 		// For development, we'll continue without DB connection
 		return
 	}
-	
+
 	a.db = db
-	
+
 	// Initialize repositories
 	a.userRepo = repositories.NewUserRepository(db)
 	a.projectRepo = repositories.NewProjectRepository(db)
-	
+
 	// Initialize services
 	a.authService = services.NewAuthService(a.userRepo)
 }
@@ -64,16 +65,16 @@ func (a *App) Login(username, password string) (*services.LoginResponse, error) 
 			Message: "Sistem nije povezan sa bazom podataka",
 		}, nil
 	}
-	
+
 	response, err := a.authService.Login(services.LoginRequest{
 		Username: username,
 		Password: password,
 	})
-	
+
 	if err == nil && response.Success {
 		a.currentUser = response.User
 	}
-	
+
 	return response, err
 }
 
@@ -89,27 +90,27 @@ func (a *App) GetCurrentUser() *models.User {
 
 // CreateUser creates a new user (Admin only)
 func (a *App) CreateUser(user *models.User, tempPassword string) error {
-	if a.currentUser == nil || a.currentUser.Role.Name != "Administrator" {
+	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
 		return errors.New("nemate dozvolu za kreiranje korisnika")
 	}
-	
+
 	if a.authService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-	
+
 	return a.authService.CreateUser(user, tempPassword)
 }
 
 // GetAllUsers returns all users (Admin only)
 func (a *App) GetAllUsers() ([]models.User, error) {
-	if a.currentUser == nil || a.currentUser.Role.Name != "Administrator" {
+	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
 		return nil, errors.New("nemate dozvolu za pregled korisnika")
 	}
-	
+
 	if a.userRepo == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-	
+
 	return a.userRepo.GetAll()
 }
 
@@ -118,27 +119,27 @@ func (a *App) GetUserProjects() ([]models.Project, error) {
 	if a.currentUser == nil {
 		return nil, errors.New("niste prijavljeni")
 	}
-	
+
 	if a.projectRepo == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-	
-	return a.projectRepo.GetByUserID(a.currentUser.ID)
+
+	return a.projectRepo.GetByUserID(a.currentUser.KorisnikID)
 }
 
 // CreateProject creates a new project
 func (a *App) CreateProject(project *models.Project) error {
-	if a.currentUser == nil || (a.currentUser.Role.Name != "Rukovodilac projekta" && a.currentUser.Role.Name != "Administrator") {
+	if a.currentUser == nil || (a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator") {
 		return errors.New("nemate dozvolu za kreiranje projekata")
 	}
-	
+
 	if a.projectRepo == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-	
-	project.ManagerID = a.currentUser.ID
+
+	project.RukovodilaID = &a.currentUser.KorisnikID
 	project.Status = "Aktivan"
-	
+
 	return a.projectRepo.Create(project)
 }
 
