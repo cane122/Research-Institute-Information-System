@@ -346,7 +346,7 @@ INSERT INTO Faze (radni_tok_id, naziv_faze, redosled) VALUES
 -- Insert default phases for documentation workflow
 INSERT INTO Faze (radni_tok_id, naziv_faze, redosled) VALUES 
 (3, 'Kreiranje', 1),
-(3, 'Revizija', 2),
+(3, 'Revizija', 2),DROP DATABASE IF EXISTS research_institute;
 (3, 'Odobravanje', 3),
 (3, 'Finalizovanje', 4),
 (3, 'Arhiviranje', 5);

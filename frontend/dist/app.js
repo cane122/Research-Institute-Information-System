@@ -1,3 +1,5 @@
+import { App } from '@wailsjs/go/main/App';
+
 // Research Institute System Frontend
 class App {
     constructor() {
@@ -145,6 +147,9 @@ class App {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const errorDiv = document.getElementById('loginError');
+            const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Prijavljivanje...';
 
         try {
             // Call Wails backend
@@ -154,13 +159,29 @@ class App {
                 this.currentUser = response.user;
                 this.showDashboard();
                 errorDiv.textContent = '';
+                    errorDiv.style.display = 'none';
+                    this.showSuccessMessage('Uspešno ste se prijavili!');
             } else {
-                errorDiv.textContent = response.message;
+                    errorDiv.textContent = response.message || 'Neispravno korisničko ime ili lozinka.';
+                    errorDiv.style.display = 'block';
+                    errorDiv.classList.add('error-visible');
+                    this.showErrorMessage('Neuspešno logovanje! Proverite podatke.');
             }
         } catch (error) {
-            errorDiv.textContent = 'Greška pri povezivanju sa serverom';
-            console.error('Login error:', error);
+                if (error && error.message) {
+                    errorDiv.textContent = `Greška: ${error.message}`;
+                } else if (error && error.toString) {
+                    errorDiv.textContent = `Greška: ${error.toString()}`;
+                } else {
+                    errorDiv.textContent = 'Greška pri povezivanju sa serverom. Proverite internet konekciju ili pokušajte ponovo.';
+                }
+                errorDiv.style.display = 'block';
+                errorDiv.classList.add('error-visible');
+                console.error('Login error:', error);
+                    this.showErrorMessage('Neuspešno logovanje! Greška u konekciji ili serveru.');
         }
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Prijavi se';
     }
 
     async handleLogout() {
@@ -314,13 +335,21 @@ class App {
     }
 
     showSuccessMessage(message) {
-        // You can implement a toast notification system here
-        alert(message);
+        const statusDiv = document.getElementById('loginStatus');
+        if (statusDiv) {
+            statusDiv.textContent = message;
+            statusDiv.style.color = 'green';
+            statusDiv.style.display = 'block';
+        }
     }
 
     showErrorMessage(message) {
-        // You can implement a toast notification system here
-        alert(message);
+        const statusDiv = document.getElementById('loginStatus');
+        if (statusDiv) {
+            statusDiv.textContent = message;
+            statusDiv.style.color = 'red';
+            statusDiv.style.display = 'block';
+        }
     }
 
     editUser(userId) {
