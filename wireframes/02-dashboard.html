@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Istraživačko razvojni centar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
+        
+        /* Header */
+        .header { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .user-menu { display: flex; align-items: center; gap: 15px; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .logout-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        
+        /* Sidebar */
+        .layout { display: flex; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e9ecef; padding: 20px 0; }
+        .nav-item { padding: 12px 25px; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { background: #ecf0f1; border-left-color: #3498db; }
+        .nav-item.active { color: #3498db; font-weight: 500; }
+        
+        /* Main content */
+        .main-content { flex: 1; padding: 30px; }
+        .dashboard-header { margin-bottom: 30px; }
+        .dashboard-header h2 { color: #2c3e50; margin-bottom: 10px; }
+        .breadcrumb { color: #7f8c8d; font-size: 14px; }
+        
+        /* Stats cards */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .stat-card h3 { color: #2c3e50; font-size: 28px; margin-bottom: 5px; }
+        .stat-card p { color: #7f8c8d; font-size: 14px; }
+        .stat-card.projects { border-left: 4px solid #3498db; }
+        .stat-card.documents { border-left: 4px solid #2ecc71; }
+        .stat-card.tasks { border-left: 4px solid #f39c12; }
+        .stat-card.users { border-left: 4px solid #9b59b6; }
+        
+        /* Recent activities */
+        .recent-activities { background: white; border-radius: 8px; padding: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .recent-activities h3 { color: #2c3e50; margin-bottom: 20px; }
+        .activity-item { padding: 15px 0; border-bottom: 1px solid #ecf0f1; display: flex; justify-content: space-between; }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-content { flex: 1; }
+        .activity-title { color: #2c3e50; font-weight: 500; }
+        .activity-desc { color: #7f8c8d; font-size: 14px; margin-top: 3px; }
+        .activity-time { color: #95a5a6; font-size: 12px; }
+        
+        /* Quick actions */
+        .quick-actions { display: flex; gap: 15px; margin-top: 30px; }
+        .quick-btn { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .quick-btn:hover { background: #2980b9; }
+        .quick-btn.secondary { background: #95a5a6; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Istraživačko razvojni centar</h1>
+        <div class="user-menu">
+            <div class="user-info">
+                <span>👤 Marko Petrović</span>
+                <span>Administrator</span>
+            </div>
+            <button class="logout-btn">Odjavi se</button>
+        </div>
+    </div>
+    
+    <!-- Main Layout -->
+    <div class="layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="nav-item active">📊 Dashboard</div>
+            <div class="nav-item">📁 Projekti</div>
+            <div class="nav-item">📋 Zadaci</div>
+            <div class="nav-item">📄 Dokumenti</div>
+            <div class="nav-item">👥 Korisnici</div>
+            <div class="nav-item">⚙️ Administracija</div>
+            <div class="nav-item">📈 Izveštaji</div>
+            <div class="nav-item">🔍 Pretraga</div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="dashboard-header">
+                <h2>Dashboard</h2>
+                <div class="breadcrumb">Početna > Dashboard</div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card projects">
+                    <h3>12</h3>
+                    <p>Aktivnih projekata</p>
+                </div>
+                <div class="stat-card documents">
+                    <h3>158</h3>
+                    <p>Dokumenata u sistemu</p>
+                </div>
+                <div class="stat-card tasks">
+                    <h3>47</h3>
+                    <p>Zadataka u toku</p>
+                </div>
+                <div class="stat-card users">
+                    <h3>23</h3>
+                    <p>Aktivnih korisnika</p>
+                </div>
+            </div>
+            
+            <!-- Recent Activities -->
+            <div class="recent-activities">
+                <h3>Poslednje aktivnosti</h3>
+                
+                <div class="activity-item">
+                    <div class="activity-content">
+                        <div class="activity-title">Nov dokument dodat</div>
+                        <div class="activity-desc">Ana Jovanović je dodala dokument "Istraživanje AI tehnologija.pdf"</div>
+                    </div>
+                    <div class="activity-time">Pre 15 minuta</div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-content">
+                        <div class="activity-title">Zadatak završen</div>
+                        <div class="activity-desc">Petar Nikolić je završio zadatak "Analiza korisničkih zahteva"</div>
+                    </div>
+                    <div class="activity-time">Pre 1 sat</div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-content">
+                        <div class="activity-title">Novi projekat kreiran</div>
+                        <div class="activity-desc">Marko Petrović je kreirao projekat "Razvoj mobilne aplikacije"</div>
+                    </div>
+                    <div class="activity-time">Pre 2 sata</div>
+                </div>
+                
+                <div class="activity-item">
+                    <div class="activity-content">
+                        <div class="activity-title">Faza dokumenta promenjena</div>
+                        <div class="activity-desc">Dokument "Specifikacija zahteva" prebačen u fazu "Recenzija"</div>
+                    </div>
+                    <div class="activity-time">Pre 3 sata</div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <a href="#" class="quick-btn">+ Novi projekat</a>
+                <a href="#" class="quick-btn">📄 Dodaj dokument</a>
+                <a href="#" class="quick-btn secondary">📊 Generiši izveštaj</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

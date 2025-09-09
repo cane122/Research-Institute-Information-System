@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administracija korisnika - Istraživačko razvojni centar</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
+        
+        /* Header */
+        .header { background: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; }
+        .user-menu { display: flex; align-items: center; gap: 15px; }
+        .logout-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        
+        /* Sidebar */
+        .layout { display: flex; min-height: calc(100vh - 70px); }
+        .sidebar { width: 250px; background: white; border-right: 1px solid #e9ecef; padding: 20px 0; }
+        .nav-item { padding: 12px 25px; cursor: pointer; border-left: 3px solid transparent; }
+        .nav-item:hover { background: #ecf0f1; border-left-color: #3498db; }
+        .nav-item.active { background: #ecf0f1; border-left-color: #3498db; color: #3498db; font-weight: 500; }
+        
+        /* Main content */
+        .main-content { flex: 1; padding: 30px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .page-header h2 { color: #2c3e50; }
+        .add-user-btn { padding: 12px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        /* Stats Cards */
+        .user-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-number { font-size: 32px; font-weight: bold; color: #2c3e50; }
+        .stat-label { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
+        .stat-card.admin { border-left: 4px solid #e74c3c; }
+        .stat-card.manager { border-left: 4px solid #3498db; }
+        .stat-card.researcher { border-left: 4px solid #2ecc71; }
+        .stat-card.total { border-left: 4px solid #9b59b6; }
+        
+        /* Filters */
+        .filters { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 12px; color: #7f8c8d; }
+        .filter-group select, .filter-group input { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; }
+        .search-input { flex: 1; }
+        
+        /* Users table */
+        .users-table { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .table-header { background: #ecf0f1; padding: 15px 20px; border-bottom: 1px solid #bdc3c7; }
+        .table-header h3 { color: #2c3e50; }
+        
+        .user-row { display: grid; grid-template-columns: 50px 1fr 150px 120px 120px 100px 120px; gap: 15px; align-items: center; padding: 15px 20px; border-bottom: 1px solid #ecf0f1; }
+        .user-row:last-child { border-bottom: none; }
+        .user-row:hover { background: #f8f9fa; }
+        
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: #3498db; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .user-name { color: #2c3e50; font-weight: 500; margin-bottom: 3px; }
+        .user-email { color: #7f8c8d; font-size: 14px; }
+        
+        .user-role { padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 500; text-align: center; }
+        .role-admin { background: #fadbd8; color: #c0392b; }
+        .role-manager { background: #dbeafe; color: #3b82f6; }
+        .role-researcher { background: #d5f4e6; color: #27ae60; }
+        
+        .user-status { padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: 500; text-align: center; }
+        .status-active { background: #d5f4e6; color: #27ae60; }
+        .status-inactive { background: #fadbd8; color: #c0392b; }
+        
+        .last-login { color: #7f8c8d; font-size: 14px; text-align: center; }
+        .user-actions { display: flex; gap: 5px; }
+        .action-btn { padding: 6px 10px; border: 1px solid #bdc3c7; background: white; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .action-btn:hover { background: #f8f9fa; }
+        .action-btn.edit { color: #3498db; border-color: #3498db; }
+        .action-btn.delete { color: #e74c3c; border-color: #e74c3c; }
+        
+        /* Table headers */
+        .table-headers { display: grid; grid-template-columns: 50px 1fr 150px 120px 120px 100px 120px; gap: 15px; padding: 15px 20px; background: #f8f9fa; border-bottom: 2px solid #e9ecef; font-weight: 600; color: #2c3e50; }
+        
+        /* Pagination */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 20px; }
+        .page-btn { padding: 8px 12px; border: 1px solid #bdc3c7; background: white; cursor: pointer; border-radius: 4px; }
+        .page-btn.active { background: #3498db; color: white; border-color: #3498db; }
+        .page-info { color: #7f8c8d; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>Istraživačko razvojni centar</h1>
+        <div class="user-menu">
+            <span>👤 Marko Petrović - Administrator</span>
+            <button class="logout-btn">Odjavi se</button>
+        </div>
+    </div>
+    
+    <!-- Main Layout -->
+    <div class="layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="nav-item">📊 Dashboard</div>
+            <div class="nav-item">📁 Projekti</div>
+            <div class="nav-item">📋 Zadaci</div>
+            <div class="nav-item">📄 Dokumenti</div>
+            <div class="nav-item">👥 Korisnici</div>
+            <div class="nav-item active">⚙️ Administracija</div>
+            <div class="nav-item">📈 Izveštaji</div>
+            <div class="nav-item">🔍 Pretraga</div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="page-header">
+                <h2>Upravljanje korisnicima</h2>
+                <button class="add-user-btn">+ Dodaj korisnika</button>
+            </div>
+            
+            <!-- User Statistics -->
+            <div class="user-stats">
+                <div class="stat-card admin">
+                    <div class="stat-number">3</div>
+                    <div class="stat-label">Administratori</div>
+                </div>
+                <div class="stat-card manager">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Rukovodioci projekata</div>
+                </div>
+                <div class="stat-card researcher">
+                    <div class="stat-number">15</div>
+                    <div class="stat-label">Istraživači</div>
+                </div>
+                <div class="stat-card total">
+                    <div class="stat-number">26</div>
+                    <div class="stat-label">Ukupno korisnika</div>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Uloga</label>
+                    <select>
+                        <option>Sve uloge</option>
+                        <option>Administrator</option>
+                        <option>Rukovodilac projekta</option>
+                        <option>Istraživač</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select>
+                        <option>Svi statusi</option>
+                        <option>Aktivan</option>
+                        <option>Neaktivan</option>
+                    </select>
+                </div>
+                <div class="filter-group search-input">
+                    <label>Pretraga</label>
+                    <input type="text" placeholder="Pretraži po imenu, email-u...">
+                </div>
+            </div>
+            
+            <!-- Users Table -->
+            <div class="users-table">
+                <div class="table-header">
+                    <h3>Lista korisnika</h3>
+                </div>
+                
+                <div class="table-headers">
+                    <div></div>
+                    <div>Korisnik</div>
+                    <div>Uloga</div>
+                    <div>Status</div>
+                    <div>Poslednja prijava</div>
+                    <div>Projekti</div>
+                    <div>Akcije</div>
+                </div>
+                
+                <!-- User Row 1 -->
+                <div class="user-row">
+                    <div class="user-avatar">MP</div>
+                    <div class="user-info">
+                        <div class="user-name">Marko Petrović</div>
+                        <div class="user-email">marko.petrovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-admin">Administrator</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Trenutno online</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">5</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 2 -->
+                <div class="user-row">
+                    <div class="user-avatar">AJ</div>
+                    <div class="user-info">
+                        <div class="user-name">Ana Jovanović</div>
+                        <div class="user-email">ana.jovanovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-manager">Rukovodilac</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Pre 2 sata</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">3</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 3 -->
+                <div class="user-row">
+                    <div class="user-avatar">PN</div>
+                    <div class="user-info">
+                        <div class="user-name">Petar Nikolić</div>
+                        <div class="user-email">petar.nikolic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-researcher">Istraživač</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Juče 18:45</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">2</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 4 -->
+                <div class="user-row">
+                    <div class="user-avatar">JS</div>
+                    <div class="user-info">
+                        <div class="user-name">Jovan Stojanović</div>
+                        <div class="user-email">jovan.stojanovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-researcher">Istraživač</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Pre 1 dan</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">4</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 5 -->
+                <div class="user-row">
+                    <div class="user-avatar">MV</div>
+                    <div class="user-info">
+                        <div class="user-name">Marija Vuković</div>
+                        <div class="user-email">marija.vukovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-researcher">Istraživač</div>
+                    <div class="user-status status-inactive">Neaktivan</div>
+                    <div class="last-login">Pre 5 dana</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">1</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Aktiviraj</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 6 -->
+                <div class="user-row">
+                    <div class="user-avatar">MR</div>
+                    <div class="user-info">
+                        <div class="user-name">Milan Radović</div>
+                        <div class="user-email">milan.radovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-manager">Rukovodilac</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Pre 3 sata</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">2</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 7 -->
+                <div class="user-row">
+                    <div class="user-avatar">NP</div>
+                    <div class="user-info">
+                        <div class="user-name">Nikola Popović</div>
+                        <div class="user-email">nikola.popovic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-researcher">Istraživač</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Pre 1 sat</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">3</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+                
+                <!-- User Row 8 -->
+                <div class="user-row">
+                    <div class="user-avatar">LM</div>
+                    <div class="user-info">
+                        <div class="user-name">Luka Milošević</div>
+                        <div class="user-email">luka.milosevic@institute.rs</div>
+                    </div>
+                    <div class="user-role role-researcher">Istraživač</div>
+                    <div class="user-status status-active">Aktivan</div>
+                    <div class="last-login">Pre 4 sata</div>
+                    <div style="text-align: center; color: #2c3e50; font-weight: 500;">1</div>
+                    <div class="user-actions">
+                        <button class="action-btn edit">Uredi</button>
+                        <button class="action-btn">Reset PW</button>
+                        <button class="action-btn delete">Obriši</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination">
+                <button class="page-btn">‹ Prethodna</button>
+                <button class="page-btn active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <button class="page-btn">Sledeća ›</button>
+                <div class="page-info">Prikazano 8 od 26 korisnika</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
