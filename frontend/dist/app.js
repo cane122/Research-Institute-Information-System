@@ -1,5 +1,3 @@
-import { App } from '@wailsjs/go/main/App';
-
 // Research Institute System Frontend
 class App {
     constructor() {
@@ -89,25 +87,145 @@ class App {
         this.loadUserProjects();
     }
 
+    showFirstTimeSetup(user) {
+        // Hide login screen
+        document.getElementById('loginScreen').classList.remove('active');
+        
+        // Create first-time setup modal
+        this.createFirstTimeSetupModal(user);
+    }
+
+    createFirstTimeSetupModal(user) {
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById('firstTimeSetupModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal HTML
+        const modalHTML = `
+            <div id="firstTimeSetupModal" class="modal show">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Prva prijava - Postavite lozinku</h2>
+                    </div>
+                    <div class="modal-body">
+                        <p>Dobrodošli ${user.ime} ${user.prezime}!</p>
+                        <p>Ovo je vaša prva prijava u sistem. Molimo vas da postavite novu lozinku.</p>
+                        <form id="firstTimeSetupForm">
+                            <div class="form-group">
+                                <label for="newPassword">Nova lozinka:</label>
+                                <input type="password" id="newPassword" name="newPassword" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Potvrdite lozinku:</label>
+                                <input type="password" id="confirmPassword" name="confirmPassword" required minlength="6">
+                            </div>
+                            <div id="passwordError" class="error-message" style="display: none;"></div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Postavite lozinku</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Store user data for later use
+        this.firstTimeUser = user;
+
+        // Add event listener for form submission
+        document.getElementById('firstTimeSetupForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleFirstTimePasswordSetup();
+        });
+    }
+
+    async handleFirstTimePasswordSetup() {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const errorDiv = document.getElementById('passwordError');
+
+        // Reset error
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+
+        // Validate passwords
+        if (newPassword !== confirmPassword) {
+            errorDiv.textContent = 'Lozinke se ne poklapaju!';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            errorDiv.textContent = 'Lozinka mora imati najmanje 6 karaktera!';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        try {
+            // Call backend to complete first-time setup
+            console.log('FirstTimeUser object:', this.firstTimeUser);
+            const response = await window.go.main.App.CompleteFirstTimeSetup(
+                this.firstTimeUser.korisnicko_ime || this.firstTimeUser.KorisnickoIme, 
+                newPassword
+            );
+
+            if (response.success) {
+                // Remove modal
+                document.getElementById('firstTimeSetupModal').remove();
+                
+                // Set current user and show dashboard
+                this.currentUser = this.firstTimeUser;
+                this.showDashboard();
+                
+                this.showSuccessMessage('Lozinka je uspešno postavljena! Dobrodošli u sistem!');
+            } else {
+                errorDiv.textContent = response.message || 'Greška pri postavljanju lozinke';
+                errorDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('First time setup error:', error);
+            errorDiv.textContent = 'Greška pri postavljanju lozinke: ' + error.message;
+            errorDiv.style.display = 'block';
+        }
+    }
+
     updateUserInterface() {
         if (!this.currentUser) return;
 
         // Update welcome message
         const welcomeSpan = document.getElementById('userWelcome');
-        welcomeSpan.textContent = `Dobrodošli, ${this.currentUser.firstName} ${this.currentUser.lastName}`;
+        welcomeSpan.textContent = `Dobrodošli, ${this.currentUser.ime} ${this.currentUser.prezime}`;
 
         // Show/hide role-specific elements
         const adminElements = document.querySelectorAll('.admin-only');
         const managerElements = document.querySelectorAll('.manager-only');
 
+        // Map role IDs to role names (based on your database schema)
+        const getRoleName = (ulogaId) => {
+            switch (ulogaId) {
+                case 1: return 'Administrator';
+                case 2: return 'Rukovodilac projekta';
+                case 3: return 'Istraživač';
+                case 4: return 'Organizator projekta';
+                default: return 'Nepoznato';
+            }
+        };
+
+        const roleName = getRoleName(this.currentUser.ulogaId);
+
         adminElements.forEach(el => {
-            el.style.display = this.currentUser.role.name === 'Administrator' ? 'block' : 'none';
+            el.style.display = roleName === 'Administrator' ? 'block' : 'none';
         });
 
         managerElements.forEach(el => {
             el.style.display = 
-                (this.currentUser.role.name === 'Rukovodilac projekta' || 
-                 this.currentUser.role.name === 'Administrator') ? 'block' : 'none';
+                (roleName === 'Rukovodilac projekta' || 
+                 roleName === 'Administrator') ? 'block' : 'none';
         });
     }
 
@@ -144,45 +262,75 @@ class App {
     }
 
     async handleLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const errorDiv = document.getElementById('loginError');
-            const loginBtn = document.querySelector('#loginForm button[type="submit"]');
-            loginBtn.disabled = true;
-            loginBtn.textContent = 'Prijavljivanje...';
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('loginError');
+    const statusDiv = document.getElementById('loginStatus');
+    const loginBtn = document.querySelector('#loginForm button[type="submit"]');
+    // Reset status and error
+    if (statusDiv) {
+        statusDiv.textContent = '';
+        statusDiv.style.display = 'none';
+    }
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Prijavljivanje...';
+    console.log('Login attempt:', { username });
 
-        try {
-            // Call Wails backend
-            const response = await window.go.main.App.Login(username, password);
-            
-            if (response.success) {
+    try {
+        // Call Wails backend
+        const response = await window.go.main.App.Login(username, password);
+        console.log('Login response:', response);
+
+        if (response.success) {
+            if (response.message === 'FIRST_TIME_LOGIN') {
+                // Handle first-time login - show password setup form
+                this.showFirstTimeSetup(response.user);
+            } else {
                 this.currentUser = response.user;
                 this.showDashboard();
                 errorDiv.textContent = '';
-                    errorDiv.style.display = 'none';
-                    this.showSuccessMessage('Uspešno ste se prijavili!');
-            } else {
-                    errorDiv.textContent = response.message || 'Neispravno korisničko ime ili lozinka.';
-                    errorDiv.style.display = 'block';
-                    errorDiv.classList.add('error-visible');
-                    this.showErrorMessage('Neuspešno logovanje! Proverite podatke.');
-            }
-        } catch (error) {
-                if (error && error.message) {
-                    errorDiv.textContent = `Greška: ${error.message}`;
-                } else if (error && error.toString) {
-                    errorDiv.textContent = `Greška: ${error.toString()}`;
-                } else {
-                    errorDiv.textContent = 'Greška pri povezivanju sa serverom. Proverite internet konekciju ili pokušajte ponovo.';
+                errorDiv.style.display = 'none';
+                this.showSuccessMessage('Uspešno ste se prijavili!');
+                if (statusDiv) {
+                    statusDiv.textContent = 'Uspešno ste se prijavili!';
+                    statusDiv.style.color = 'green';
+                    statusDiv.style.display = 'block';
                 }
-                errorDiv.style.display = 'block';
-                errorDiv.classList.add('error-visible');
-                console.error('Login error:', error);
-                    this.showErrorMessage('Neuspešno logovanje! Greška u konekciji ili serveru.');
+            }
+        } else {
+            errorDiv.textContent = response.message || 'Neispravno korisničko ime ili lozinka.';
+            errorDiv.style.display = 'block';
+            errorDiv.classList.add('error-visible');
+            this.showErrorMessage('Neuspešno logovanje! Proverite podatke.');
+            if (statusDiv) {
+                statusDiv.textContent = response.message || 'Neuspešno logovanje! Proverite podatke.';
+                statusDiv.style.color = 'red';
+                statusDiv.style.display = 'block';
+            }
         }
-            loginBtn.disabled = false;
-            loginBtn.textContent = 'Prijavi se';
+    } catch (error) {
+        console.error('Login error:', error);
+        if (error && error.message) {
+            errorDiv.textContent = `Greška: ${error.message}`;
+        } else if (error && error.toString) {
+            errorDiv.textContent = `Greška: ${error.toString()}`;
+        } else {
+            errorDiv.textContent = 'Greška pri povezivanju sa serverom. Proverite internet konekciju ili pokušajte ponovo.';
+        }
+        errorDiv.style.display = 'block';
+        errorDiv.classList.add('error-visible');
+        this.showErrorMessage('Neuspešno logovanje! Greška u konekciji ili serveru.');
+        if (statusDiv) {
+            statusDiv.textContent = 'Neuspešno logovanje! Greška u konekciji ili serveru.';
+            statusDiv.style.color = 'red';
+            statusDiv.style.display = 'block';
+        }
     }
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Prijavi se';
+}
 
     async handleLogout() {
         try {
@@ -445,7 +593,11 @@ window.addEventListener('DOMContentLoaded', () => {
                             }
                         ];
                     },
-                    CreateUser: async (user, tempPassword) => { return true; }
+                    CreateUser: async (user, tempPassword) => { return true; },
+                    CompleteFirstTimeSetup: async (username, newPassword) => {
+                        console.log('Mock: First time setup completed for', username);
+                        return { success: true };
+                    }
                 }
             }
         };

@@ -22,8 +22,8 @@ type Korisnici struct {
 	Prezime           *string    `json:"prezime" db:"prezime"`
 	UlogaID           int        `json:"uloga_id" db:"uloga_id"`
 	Status            string     `json:"status" db:"status"`
-	PoslednajaPrijava *time.Time `json:"poslednja_prijava" db:"poslednja_prijava"`
-	KreiranDatuma     time.Time  `json:"kreiran_datuma" db:"kreiran_datuma"`
+	PoslednajaPrijava *time.Time `json:"poslednja_prijava" db:"poslednja_prijava" ts_type:"string"`
+	KreiranDatuma     time.Time  `json:"kreiran_datuma" db:"kreiran_datuma" ts_type:"string"`
 
 	// Joined fields
 	NazivUloge string `json:"naziv_uloge,omitempty" db:"naziv_uloge"`
@@ -55,8 +55,8 @@ type Projekti struct {
 	ProjekatID     int        `json:"projekat_id" db:"projekat_id"`
 	NazivProjekta  string     `json:"naziv_projekta" db:"naziv_projekta"`
 	Opis           *string    `json:"opis" db:"opis"`
-	DatumPocetka   *time.Time `json:"datum_pocetka" db:"datum_pocetka"`
-	DatumZavrsetka *time.Time `json:"datum_zavrsetka" db:"datum_zavrsetka"`
+	DatumPocetka   *time.Time `json:"datum_pocetka" db:"datum_pocetka" ts_type:"string"`
+	DatumZavrsetka *time.Time `json:"datum_zavrsetka" db:"datum_zavrsetka" ts_type:"string"`
 	Status         string     `json:"status" db:"status"`
 	RukovodilaID   *int       `json:"rukovodilac_id" db:"rukovodilac_id"`
 	RadniTokID     *int       `json:"radni_tok_id" db:"radni_tok_id"`

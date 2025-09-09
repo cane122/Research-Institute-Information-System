@@ -7,25 +7,17 @@ SET client_encoding = 'UTF8';
 BEGIN;
 
 -- 1. KREIRANJE TEST KORISNIKA
-INSERT INTO Korisnici (korisnicko_ime, email, hash_sifre, ime, prezime, uloga_id, status) VALUES 
--- Administratori
-('admin', 'admin@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Marko', 'Petrovic', 1, 'aktivan'),
-('director', 'direktor@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Ana', 'Nikolic', 1, 'aktivan'),
-
--- Rukovodioci projekata
-('proj_manager1', 'milan.jovanovic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Milan', 'Jovanovic', 2, 'aktivan'),
-('proj_manager2', 'jelena.stojanovic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Jelena', 'Stojanovic', 2, 'aktivan'),
-
--- Istrazivaci
-('researcher1', 'stefan.milic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Stefan', 'Milic', 3, 'aktivan'),
-('researcher2', 'milica.petrovic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Milica', 'Petrovic', 3, 'aktivan'),
-('researcher3', 'aleksandar.nikolic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Aleksandar', 'Nikolic', 3, 'aktivan'),
-('researcher4', 'jovana.milosevic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Jovana', 'Milosevic', 3, 'aktivan'),
-
--- Organizatori
-('organizer1', 'marija.stankovic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Marija', 'Stankovic', 4, 'aktivan'),
-('organizer2', 'petar.radovic@institut.rs', '$2a$10$N9qo8uLOickgx2ZMRZoMye7N27jcOUFTkUse1KV8Vi9IQx42bd4WW', 'Petar', 'Radovic', 4, 'aktivan');
-
+INSERT INTO Korisnici (korisnik_id, korisnicko_ime, email, hash_sifre, ime, prezime, uloga_id, status) VALUES
+(1, 'admin', 'admin@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$fg2s2gmJk7467X4Hd4AggCjOQ3NwUhaWTQhwz7vfxhc$CDebI9A9GMptWEpovQO0YB+P6C3gSbSeM7GoIRqXWSU', 'Marko', 'Petrovic', 1, 'aktivan'),
+(2, 'researcher1', 'researcher1@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Ana', 'Petrovic', 3, 'aktivan'),
+(3, 'manager1', 'manager1@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Petar', 'Jovanovic', 2, 'aktivan'),
+(4, 'manager2', 'manager2@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Milica', 'Nikolic', 2, 'aktivan'),
+(5, 'researcher2', 'researcher2@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Stefan', 'Milic', 3, 'aktivan'),
+(6, 'researcher3', 'researcher3@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Jovana', 'Stojanovic', 3, 'aktivan'),
+(7, 'researcher4', 'researcher4@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Marko', 'Lazic', 3, 'aktivan'),
+(8, 'researcher5', 'researcher5@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Tamara', 'Radic', 3, 'aktivan'),
+(9, 'researcher6', 'researcher6@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Nikola', 'Peric', 3, 'aktivan'),
+(10, 'researcher7', 'researcher7@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Milena', 'Savic', 3, 'aktivan');
 -- 2. KREIRANJE TEST PROJEKATA
 INSERT INTO Projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, status, rukovodilac_id, radni_tok_id) VALUES 
 ('AI u Zdravstvu', 'Implementacija vestacke inteligencije u dijagnostici medicinskih slika', '2025-01-15', '2025-12-31', 'Aktivan', 3, 2),
@@ -80,13 +72,13 @@ INSERT INTO Folderi (naziv_foldera, roditelj_folder_id, vlasnik_id) VALUES
 
 -- 6. KREIRANJE DOKUMENATA
 INSERT INTO Dokumenti (projekat_id, naziv_dokumenta, folder_id, opis, tip_dokumenta, jezik_dokumenta, radni_tok_id, trenutna_faza_id, kreirao_korisnik_id) VALUES 
-('1', 'Specifikacija AI Modela v1.2', 2, 'Detaljne specifikacije za CNN model dijagnostike', 'Specifikacija', 'srpski', 3, 12, 5),
-('1', 'Dataset Medicinskih Slika', 2, 'Kolekcija od 10000 anotiranih medicinskih slika', 'Dataset', 'engleski', 3, 13, 6),
-('2', 'IoT Sensor Protokol', 3, 'Komunikacijski protokol za IoT senzore', 'Protokol', 'srpski', 3, 11, 7),
-('2', 'Mobilna App Wireframes', 3, 'UI/UX dizajn za gradjansku aplikaciju', 'Dizajn', 'srpski', 3, 12, 8),
-('3', 'Kvantni Algoritmi - Implementacija', 4, 'Python kod za Shor i Grover algoritme', 'Kod', 'engleski', 3, 14, 5),
-('4', 'Blockchain Arhitektura', 5, 'Sistemska arhitektura decentralizovanog ID sistema', 'Arhitektura', 'srpski', 3, 13, 6),
-(NULL, 'Godisnji Izvestaj 2024', 7, 'Finansijski izvestaj instituta za 2024. godinu', 'Izvestaj', 'srpski', 3, 15, 2);
+(1, 'Specifikacija AI Modela v1.2', 2, 'Detaljne specifikacije za CNN model dijagnostike', 'Specifikacija', 'srpski', 3, 11, 5),
+(1, 'Dataset Medicinskih Slika', 2, 'Kolekcija od 10000 anotiranih medicinskih slika', 'Dataset', 'engleski', 3, 12, 6),
+(2, 'IoT Sensor Protokol', 3, 'Komunikacijski protokol za IoT senzore', 'Protokol', 'srpski', 3, 11, 7),
+(2, 'Mobilna App Wireframes', 3, 'UI/UX dizajn za gradjansku aplikaciju', 'Dizajn', 'srpski', 3, 12, 8),
+(3, 'Kvantni Algoritmi - Implementacija', 4, 'Python kod za Shor i Grover algoritme', 'Kod', 'engleski', 3, 13, 5),
+(4, 'Blockchain Arhitektura', 5, 'Sistemska arhitektura decentralizovanog ID sistema', 'Arhitektura', 'srpski', 3, 13, 6),
+(NULL, 'Godisnji Izvestaj 2024', 7, 'Finansijski izvestaj instituta za 2024. godinu', 'Izvestaj', 'srpski', 3, 14, 2);
 
 -- 7. VERZIJE DOKUMENATA
 INSERT INTO VerzijeDokumenata (dokument_id, verzija_oznaka, putanja_do_fajla, velicina_fajla_MB, postavio_korisnik_id) VALUES 

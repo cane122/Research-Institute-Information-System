@@ -1,5 +1,4 @@
 -- Pregled dummy podataka u bazi
-\echo '=== PREGLED KORISNIKA ==='
 SELECT 
     k.korisnik_id,
     k.korisnicko_ime,
@@ -10,8 +9,6 @@ FROM Korisnici k
 JOIN Uloge u ON k.uloga_id = u.uloga_id
 ORDER BY k.uloga_id, k.ime;
 
-\echo ''
-\echo '=== PREGLED PROJEKATA ==='
 SELECT 
     p.projekat_id,
     p.naziv_projekta,
@@ -23,8 +20,6 @@ FROM Projekti p
 LEFT JOIN Korisnici k ON p.rukovodilac_id = k.korisnik_id
 ORDER BY p.projekat_id;
 
-\echo ''
-\echo '=== AKTUELNI ZADACI ==='
 SELECT 
     z.zadatak_id,
     z.naziv_zadatka,
@@ -41,8 +36,6 @@ ORDER BY
     CASE z.prioritet WHEN 'Visok' THEN 1 WHEN 'Srednji' THEN 2 ELSE 3 END,
     z.rok;
 
-\echo ''
-\echo '=== DOKUMENTI PO PROJEKTIMA ==='
 SELECT 
     p.naziv_projekta as projekat,
     d.naziv_dokumenta,
@@ -54,8 +47,6 @@ LEFT JOIN Projekti p ON d.projekat_id = p.projekat_id
 JOIN Korisnici k ON d.kreirao_korisnik_id = k.korisnik_id
 ORDER BY p.naziv_projekta NULLS LAST, d.naziv_dokumenta;
 
-\echo ''
-\echo '=== POSLEDNJE AKTIVNOSTI ==='
 SELECT 
     la.datuma::date as datum,
     k.ime || ' ' || k.prezime as korisnik,

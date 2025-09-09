@@ -2,8 +2,8 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "research-institute-system",
   "outputfilename": "research-institute-system",
-  "frontend:install": "",
-  "frontend:build": "",
+  "frontend": { "dir": "frontend", "build": "build" },
+
   "author": {
     "name": "Cane",
     "email": "cane@research-institute.com"

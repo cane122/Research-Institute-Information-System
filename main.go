@@ -260,6 +260,34 @@ func (a *App) CreateUser(user *models.User, tempPassword string) error {
 	return a.authService.CreateUser(user, tempPassword)
 }
 
+// CompleteFirstTimeSetup completes first-time login setup
+func (a *App) CompleteFirstTimeSetup(username, newPassword string) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	log.Printf("🔧 CompleteFirstTimeSetup pozvana za korisnika: %s", username)
+
+	if a.authService == nil {
+		log.Printf("❌ AuthService nije inicijalizovan")
+		result["success"] = false
+		result["message"] = "Sistem nije povezan sa bazom podataka"
+		return result
+	}
+
+	log.Printf("🔍 Pozivam CompleteFirstTimeSetupByUsername...")
+	err := a.authService.CompleteFirstTimeSetupByUsername(username, newPassword)
+	if err != nil {
+		log.Printf("❌ Greška u CompleteFirstTimeSetupByUsername: %v", err)
+		result["success"] = false
+		result["message"] = err.Error()
+		return result
+	}
+
+	log.Printf("✅ CompleteFirstTimeSetup uspešno završena")
+	result["success"] = true
+	result["message"] = "Lozinka je uspešno postavljena"
+	return result
+}
+
 // GetAllUsers returns all users (Admin only)
 func (a *App) GetAllUsers() ([]models.User, error) {
 	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
@@ -319,6 +347,9 @@ func main() {
 		OnDomReady:       app.OnDomReady,
 		OnShutdown:       app.OnShutdown,
 		WindowStartState: options.Normal,
+		Bind: []interface{}{
+			app,
+		},
 	})
 
 	if err != nil {

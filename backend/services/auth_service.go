@@ -56,6 +56,15 @@ func (s *AuthService) Login(req LoginRequest) (*LoginResponse, error) {
 		}, nil
 	}
 
+	// Check if this is first-time login (no previous login recorded)
+	if user.PoslednajaPrijava == nil {
+		return &LoginResponse{
+			User:    user,
+			Success: true,
+			Message: "FIRST_TIME_LOGIN", // Special message indicating first-time login
+		}, nil
+	}
+
 	if !s.verifyPassword(req.Password, user.HashSifre) {
 		return &LoginResponse{
 			Success: false,
@@ -88,7 +97,7 @@ func (s *AuthService) CreateUser(user *models.User, tempPassword string) error {
 	}
 
 	// Hash the temporary password
-	hashedPassword, err := s.hashPassword(tempPassword)
+	hashedPassword, err := s.HashPassword(tempPassword)
 	if err != nil {
 		return err
 	}
@@ -103,7 +112,7 @@ func (s *AuthService) ResetPassword(userID int) (string, error) {
 	// Generate temporary password
 	tempPassword := s.generateTempPassword()
 
-	hashedPassword, err := s.hashPassword(tempPassword)
+	hashedPassword, err := s.HashPassword(tempPassword)
 	if err != nil {
 		return "", err
 	}
@@ -121,7 +130,7 @@ func (s *AuthService) ChangePassword(userID int, newPassword string) error {
 		return errors.New("lozinka mora imati najmanje 8 karaktera")
 	}
 
-	hashedPassword, err := s.hashPassword(newPassword)
+	hashedPassword, err := s.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}
@@ -129,7 +138,34 @@ func (s *AuthService) ChangePassword(userID int, newPassword string) error {
 	return s.userRepo.UpdatePassword(userID, hashedPassword)
 }
 
-func (s *AuthService) hashPassword(password string) (string, error) {
+func (s *AuthService) CompleteFirstTimeSetup(userID int, newPassword string) error {
+	hashedPassword, err := s.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+
+	// Update password and set first login timestamp
+	err = s.userRepo.UpdatePassword(userID, hashedPassword)
+	if err != nil {
+		return err
+	}
+
+	// Mark as having completed first login
+	return s.userRepo.UpdateLastLogin(userID)
+}
+
+func (s *AuthService) CompleteFirstTimeSetupByUsername(username, newPassword string) error {
+	// Get user by username
+	user, err := s.userRepo.GetByUsername(username)
+	if err != nil {
+		return errors.New("korisnik nije pronađen")
+	}
+
+	// Use existing function with userID
+	return s.CompleteFirstTimeSetup(user.KorisnikID, newPassword)
+}
+
+func (s *AuthService) HashPassword(password string) (string, error) {
 	salt := make([]byte, 32)
 	_, err := rand.Read(salt)
 	if err != nil {

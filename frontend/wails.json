@@ -1,0 +1,12 @@
+{
+  "name": "frontend",
+  "author": {
+    "name": "cane122",
+    "email": "cankovic.in9.2021@uns.ac.rs"
+  },
+  "description": "Wails frontend",
+  "version": "0.1.0",
+  "scripts": {
+  "build": "echo Building frontend..."
+    }
+}
