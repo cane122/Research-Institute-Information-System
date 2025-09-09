@@ -4,8 +4,6 @@
   "outputfilename": "research-institute-system",
   "frontend:install": "",
   "frontend:build": "",
-  "frontend:dev:watcher": "",
-  "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "Cane",
     "email": "cane@research-institute.com"

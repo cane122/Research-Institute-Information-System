@@ -1,12 +1,16 @@
 -- Research Institute Information System Database Schema
 -- Created for PostgreSQL
+-- Encoding: UTF-8
+
+-- Set client encoding to UTF8
+SET client_encoding = 'UTF8';
 
 -- Module 1: User and Role Management
 
 -- Table for defining user roles (Administrator, Manager, Researcher)
 CREATE TABLE Uloge (
     uloga_id SERIAL PRIMARY KEY,
-    naziv_uloge VARCHAR(50) UNIQUE NOT NULL -- e.g., 'Administrator', 'Rukovodilac projekta', 'Istraživač'
+    naziv_uloge VARCHAR(50) UNIQUE NOT NULL -- e.g., 'Administrator', 'Rukovodilac projekta', 'Istrazivac'
 );
 
 -- Main table for system users
@@ -233,7 +237,7 @@ CREATE TABLE LogAktivnosti (
 INSERT INTO Uloge (naziv_uloge) VALUES 
 ('Administrator'),
 ('Rukovodilac projekta'),
-('Istraživač'),
+('Istrazivac'),
 ('Organizator projekta');
 
 -- Create indexes for better performance
@@ -320,7 +324,7 @@ JOIN Faze f ON z.faza_id = f.faza_id;
 -- Insert default workflows
 INSERT INTO RadniTokovi (naziv, tip_toka, opis, da_li_je_sablon) VALUES 
 ('Standardni projektni tok', 'PROJEKAT', 'Osnovni radni tok za projekte', TRUE),
-('Istraživački tok', 'PROJEKAT', 'Tok za istraživačke projekte', TRUE),
+('Istrazivacki tok', 'PROJEKAT', 'Tok za istrazivacke projekte', TRUE),
 ('Dokumentacioni tok', 'DOKUMENTACIJA', 'Tok za upravljanje dokumentima', TRUE);
 
 -- Insert default phases for project workflow
@@ -333,10 +337,10 @@ INSERT INTO Faze (radni_tok_id, naziv_faze, redosled) VALUES
 
 -- Insert default phases for research workflow
 INSERT INTO Faze (radni_tok_id, naziv_faze, redosled) VALUES 
-(2, 'Definisanje istraživanja', 1),
+(2, 'Definisanje istrazivanja', 1),
 (2, 'Prikupljanje podataka', 2),
 (2, 'Analiza podataka', 3),
-(2, 'Pisanje izveštaja', 4),
+(2, 'Pisanje izvestaja', 4),
 (2, 'Publikovanje', 5);
 
 -- Insert default phases for documentation workflow
