@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"embed"
 	"errors"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/cane/research-institute-system/backend/models"
 	"github.com/cane/research-institute-system/backend/repositories"
@@ -35,21 +37,49 @@ func NewApp() *App {
 	return &App{}
 }
 
+// getEnvOrDefault gets environment variable or returns default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 // OnStartup is called when the app starts up
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize database connection
-	db, err := sql.Open("postgres", "postgres://username:password@localhost/research_institute?sslmode=disable")
+	// Initialize database connection with better error handling
+	// To configure: Set environment variables DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
+	// Default: postgres://postgres:password@localhost:5432/research_institute?sslmode=disable
+	dbHost := getEnvOrDefault("DB_HOST", "localhost:5432")
+	dbUser := getEnvOrDefault("DB_USER", "postgres")
+	dbPassword := getEnvOrDefault("DB_PASSWORD", "password")
+	dbName := getEnvOrDefault("DB_NAME", "research_institute")
+
+	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbName)
+
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		log.Printf("Failed to connect to database: %v", err)
-		// For development, we'll continue without DB connection
+		log.Printf("Failed to open database connection: %v", err)
+		log.Printf("Application will continue without database. To configure database:")
+		log.Printf("1. Install PostgreSQL")
+		log.Printf("2. Create database 'research_institute'")
+		log.Printf("3. Set environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME")
+		log.Printf("4. Run the SQL schema from database/schema.sql")
+		return
+	}
+
+	// Test the connection
+	if err := db.Ping(); err != nil {
+		log.Printf("Failed to ping database: %v", err)
+		log.Printf("Database connection string: %s", connStr)
+		log.Printf("Application will continue without database.")
 		return
 	}
 
 	a.db = db
-
-	// Initialize repositories
+	log.Printf("Successfully connected to PostgreSQL database: %s", dbName) // Initialize repositories
 	a.userRepo = repositories.NewUserRepository(db)
 	a.projectRepo = repositories.NewProjectRepository(db)
 
