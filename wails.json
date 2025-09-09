@@ -1,0 +1,23 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "research-institute-system",
+  "outputfilename": "research-institute-system",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Cane",
+    "email": "cane@research-institute.com"
+  },
+  "info": {
+    "companyName": "Istraživačko-razvojni centar",
+    "productName": "Istraživačko-razvojni centar - Informacioni sistem",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2025, Istraživačko-razvojni centar",
+    "comments": "Informacioni sistem za istraživačko-razvojni institut"
+  },
+  "nsisType": "multiple",
+  "obfuscated": false,
+  "garbleargs": ""
+}
