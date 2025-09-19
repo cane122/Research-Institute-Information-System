@@ -14,12 +14,32 @@ export function CreateUser(arg1, arg2) {
   return window['go']['main']['App']['CreateUser'](arg1, arg2);
 }
 
+export function DeleteDocument(arg1) {
+  return window['go']['main']['App']['DeleteDocument'](arg1);
+}
+
+export function GetAllDocuments() {
+  return window['go']['main']['App']['GetAllDocuments']();
+}
+
 export function GetAllUsers() {
   return window['go']['main']['App']['GetAllUsers']();
 }
 
 export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
+}
+
+export function GetDocumentByID(arg1) {
+  return window['go']['main']['App']['GetDocumentByID'](arg1);
+}
+
+export function GetDocumentTags(arg1) {
+  return window['go']['main']['App']['GetDocumentTags'](arg1);
+}
+
+export function GetDocumentVersions(arg1) {
+  return window['go']['main']['App']['GetDocumentVersions'](arg1);
 }
 
 export function GetUserProjects() {
@@ -36,4 +56,12 @@ export function Logout() {
 
 export function TestConnection() {
   return window['go']['main']['App']['TestConnection']();
+}
+
+export function UpdateDocument(arg1, arg2) {
+  return window['go']['main']['App']['UpdateDocument'](arg1, arg2);
+}
+
+export function UploadDocument(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3);
 }

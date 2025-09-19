@@ -26,12 +26,13 @@ var assets embed.FS
 
 // App struct
 type App struct {
-	ctx         context.Context
-	db          *sql.DB
-	authService *services.AuthService
-	userRepo    *repositories.UserRepository
-	projectRepo *repositories.ProjectRepository
-	currentUser *models.User
+	ctx             context.Context
+	db              *sql.DB
+	authService     *services.AuthService
+	documentService *services.DocumentService
+	userRepo        *repositories.UserRepository
+	projectRepo     *repositories.ProjectRepository
+	currentUser     *models.User
 }
 
 // NewApp creates a new App application struct
@@ -177,6 +178,7 @@ func (a *App) initializeDatabase() {
 
 	// Initialize services
 	a.authService = services.NewAuthService(a.userRepo)
+	a.documentService = services.NewDocumentService(db)
 }
 
 // Login authenticates a user
@@ -328,6 +330,99 @@ func (a *App) CreateProject(project *models.Project) error {
 	project.Status = "Aktivan"
 
 	return a.projectRepo.Create(project)
+}
+
+// Document Management Methods
+
+// GetAllDocuments returns all documents
+func (a *App) GetAllDocuments() ([]models.Dokumenti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetAllDocuments()
+}
+
+// GetDocumentByID returns a specific document by ID
+func (a *App) GetDocumentByID(documentID int) (models.Dokumenti, error) {
+	if a.currentUser == nil {
+		return models.Dokumenti{}, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return models.Dokumenti{}, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetDocumentByID(documentID)
+}
+
+// GetDocumentVersions returns all versions of a document
+func (a *App) GetDocumentVersions(documentID int) ([]models.VerzijeDokumenata, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetDocumentVersions(documentID)
+}
+
+// GetDocumentTags returns all tags for a document
+func (a *App) GetDocumentTags(documentID int) ([]models.Tagovi, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetDocumentTags(documentID)
+}
+
+// UploadDocument uploads a new document
+func (a *App) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.UploadDocument(req, fileData, fileName, a.currentUser.KorisnikID)
+}
+
+// UpdateDocument updates an existing document
+func (a *App) UpdateDocument(documentID int, req models.UploadDocumentRequest) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.UpdateDocument(documentID, req)
+}
+
+// DeleteDocument deletes a document
+func (a *App) DeleteDocument(documentID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.DeleteDocument(documentID)
 }
 
 func main() {

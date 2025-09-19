@@ -9,9 +9,19 @@ export function CreateProject(arg1:models.Projekti):Promise<void>;
 
 export function CreateUser(arg1:models.Korisnici,arg2:string):Promise<void>;
 
+export function DeleteDocument(arg1:number):Promise<void>;
+
+export function GetAllDocuments():Promise<Array<models.Dokumenti>>;
+
 export function GetAllUsers():Promise<Array<models.Korisnici>>;
 
 export function GetCurrentUser():Promise<models.Korisnici>;
+
+export function GetDocumentByID(arg1:number):Promise<models.Dokumenti>;
+
+export function GetDocumentTags(arg1:number):Promise<Array<models.Tagovi>>;
+
+export function GetDocumentVersions(arg1:number):Promise<Array<models.VerzijeDokumenata>>;
 
 export function GetUserProjects():Promise<Array<models.Projekti>>;
 
@@ -20,3 +30,7 @@ export function Login(arg1:string,arg2:string):Promise<services.LoginResponse>;
 export function Logout():Promise<void>;
 
 export function TestConnection():Promise<Record<string, any>>;
+
+export function UpdateDocument(arg1:number,arg2:models.UploadDocumentRequest):Promise<void>;
+
+export function UploadDocument(arg1:models.UploadDocumentRequest,arg2:Array<number>,arg3:string):Promise<void>;

@@ -2,7 +2,12 @@
   <div class="app-layout">
     <!-- Header -->
     <div class="header">
-      <h1>Istraživačko razvojni centar</h1>
+      <div class="header-left">
+        <button class="sidebar-toggle" @click="toggleSidebar">
+          <span class="toggle-icon">{{ isCollapsed ? '☰' : '✕' }}</span>
+        </button>
+        <h1>Istraživačko razvojni centar</h1>
+      </div>
       <div class="user-menu">
         <div class="user-info">
           <span class="user-icon">👤</span>
@@ -18,7 +23,7 @@
     <!-- Main Layout -->
     <div class="layout">
       <!-- Sidebar -->
-      <div class="sidebar">
+      <div class="sidebar" :class="{ collapsed: isCollapsed }">
         <nav class="nav-menu">
           <router-link 
             v-for="item in navigationItems" 
@@ -26,15 +31,16 @@
             :to="item.path" 
             class="nav-item"
             :class="{ active: $route.path === item.path }"
+            :title="isCollapsed ? item.text : ''"
           >
             <span class="nav-icon">{{ item.icon }}</span>
-            <span class="nav-text">{{ item.text }}</span>
+            <span class="nav-text" :class="{ hidden: isCollapsed }">{{ item.text }}</span>
           </router-link>
         </nav>
       </div>
       
       <!-- Main Content -->
-      <div class="main-content">
+      <div class="main-content" :class="{ expanded: isCollapsed }">
         <slot />
       </div>
     </div>
@@ -42,12 +48,15 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// Reactive state for sidebar collapse
+const isCollapsed = ref(false)
 
 // Computed
 const userRoleText = computed(() => {
@@ -73,6 +82,10 @@ const navigationItems = computed(() => {
 })
 
 // Methods
+function toggleSidebar() {
+  isCollapsed.value = !isCollapsed.value
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -96,6 +109,37 @@ function handleLogout() {
   align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: 2px solid #3498db;
+  color: #3498db;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 18px;
+}
+
+.sidebar-toggle:hover {
+  background: #3498db;
+  color: white;
+  transform: scale(1.05);
+}
+
+.toggle-icon {
+  transition: transform 0.3s ease;
 }
 
 .header h1 {
@@ -163,6 +207,11 @@ function handleLogout() {
   border-right: 1px solid #e9ecef;
   overflow-y: auto;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 80px;
 }
 
 .nav-menu {
@@ -178,6 +227,12 @@ function handleLogout() {
   transition: all 0.3s;
   text-decoration: none;
   color: #2c3e50;
+  position: relative;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 15px 10px;
 }
 
 .nav-item:hover {
@@ -196,16 +251,30 @@ function handleLogout() {
   font-size: 18px;
   margin-right: 12px;
   min-width: 20px;
+  transition: margin 0.3s ease;
+}
+
+.sidebar.collapsed .nav-icon {
+  margin-right: 0;
 }
 
 .nav-text {
   font-size: 14px;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+}
+
+.nav-text.hidden {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   overflow-y: auto;
   background: #f8f9fa;
+  transition: margin-left 0.3s ease;
 }
 
 /* Responsive */
@@ -223,6 +292,10 @@ function handleLogout() {
   }
   
   .sidebar {
+    width: 80px;
+  }
+  
+  .sidebar.collapsed {
     width: 60px;
   }
   
@@ -241,21 +314,32 @@ function handleLogout() {
 }
 
 @media (max-width: 480px) {
+  .sidebar-toggle {
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+  }
+  
   .sidebar {
     position: fixed;
     left: -260px;
     width: 260px;
     height: 100%;
     z-index: 1000;
-    transition: left 0.3s;
+    transition: left 0.3s, width 0.3s;
   }
   
-  .sidebar.open {
-    left: 0;
+  .sidebar.collapsed {
+    left: -80px;
+    width: 80px;
   }
   
   .nav-text {
     display: block;
+  }
+  
+  .nav-text.hidden {
+    display: none;
   }
   
   .nav-item {
@@ -263,8 +347,17 @@ function handleLogout() {
     padding: 15px 25px;
   }
   
+  .sidebar.collapsed .nav-item {
+    justify-content: center;
+    padding: 15px 10px;
+  }
+  
   .nav-icon {
     margin-right: 12px;
+  }
+  
+  .sidebar.collapsed .nav-icon {
+    margin-right: 0;
   }
 }
 </style>
