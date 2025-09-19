@@ -49,6 +49,23 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# SECURITY: Sensitive files and credentials
+uploads/*.txt
+uploads/temp*
+uploads/*secret*
+uploads/*key*
+uploads/*credential*
+uploads/*password*
+**/temp_*.txt
+**/*secret*
+**/*credential*
+**/*apikey*
+**/*api_key*
+**/*api-key*
+**/keys.txt
+**/secrets.txt
+**/config/secrets*
+
 # Wails build files
 /app.syso
 /build/
@@ -57,3 +74,5 @@ Thumbs.db
 
 # Temporary files
 /tmp/
+/temp/
+*.tmp
