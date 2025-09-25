@@ -76,3 +76,10 @@ uploads/*password*
 /tmp/
 /temp/
 *.tmp
+test_auth.go
+POSTMAN_TESTING_GUIDE.md
+Projects_Tasks_API_Tests.postman_collection.json
+Projects_Tasks_Environment.postman_environment.json
+PROJECTS_TASKS_TESTING_GUIDE.md
+Research_Institute_API_Tests.postman_collection.json
+Research_Institute_Environment.postman_environment.json

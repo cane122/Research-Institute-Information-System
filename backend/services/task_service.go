@@ -25,10 +25,10 @@ func (s *TaskService) GetTasksByProject(projectID int) ([]models.Zadaci, error) 
 		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
-		FROM zadaci z
-		JOIN projekti p ON z.projekat_id = p.projekat_id
-		JOIN faze f ON z.faza_id = f.faza_id
-		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+		FROM Zadaci z
+		JOIN Projekti p ON z.projekat_id = p.projekat_id
+		JOIN Faze f ON z.faza_id = f.faza_id
+		LEFT JOIN Korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
 		WHERE z.projekat_id = $1
 		ORDER BY z.kreiran_datuma DESC
 	`
@@ -63,10 +63,10 @@ func (s *TaskService) GetTasksByUser(userID int) ([]models.Zadaci, error) {
 		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
-		FROM zadaci z
-		JOIN projekti p ON z.projekat_id = p.projekat_id
-		JOIN faze f ON z.faza_id = f.faza_id
-		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+		FROM Zadaci z
+		JOIN Projekti p ON z.projekat_id = p.projekat_id
+		JOIN Faze f ON z.faza_id = f.faza_id
+		LEFT JOIN Korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
 		WHERE z.dodeljen_korisniku_id = $1
 		ORDER BY z.rok ASC NULLS LAST, z.prioritet DESC
 	`
@@ -102,10 +102,10 @@ func (s *TaskService) GetTaskByID(taskID int) (models.Zadaci, error) {
 		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
-		FROM zadaci z
-		JOIN projekti p ON z.projekat_id = p.projekat_id
-		JOIN faze f ON z.faza_id = f.faza_id
-		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+		FROM Zadaci z
+		JOIN Projekti p ON z.projekat_id = p.projekat_id
+		JOIN Faze f ON z.faza_id = f.faza_id
+		LEFT JOIN Korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
 		WHERE z.zadatak_id = $1
 	`
 
@@ -235,7 +235,7 @@ func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, e
 	query := `
 		SELECT kz.komentar_id, kz.zadatak_id, kz.korisnik_id, kz.tekst_komentara,
 		       kz.datuma_kreiranja, k.korisnicko_ime as ime_korisnika
-		FROM komentari_zadataka kz
+		FROM komentarizadataka kz
 		JOIN korisnici k ON kz.korisnik_id = k.korisnik_id
 		WHERE kz.zadatak_id = $1
 		ORDER BY kz.datuma_kreiranja DESC
@@ -265,7 +265,7 @@ func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, e
 
 func (s *TaskService) AddTaskComment(taskID, userID int, comment string) error {
 	query := `
-		INSERT INTO komentari_zadataka (zadatak_id, korisnik_id, tekst_komentara)
+		INSERT INTO komentarizadataka (zadatak_id, korisnik_id, tekst_komentara)
 		VALUES ($1, $2, $3)
 	`
 

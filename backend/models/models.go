@@ -295,6 +295,27 @@ type UploadDocumentRequest struct {
 	Tagovi         []string `json:"tagovi"`
 }
 
+// CreateTaskCommentRequest represents new task comment creation data
+type CreateTaskCommentRequest struct {
+	TekstKomentara string `json:"tekst_komentara" validate:"required"`
+}
+
+// UpdateTaskCommentRequest represents task comment update data
+type UpdateTaskCommentRequest struct {
+	TekstKomentara string `json:"tekst_komentara" validate:"required"`
+}
+
+// CreatePhaseChangeRequest represents new phase change request creation data
+type CreatePhaseChangeRequest struct {
+	ZahtevanaFazaID int    `json:"zahtevana_faza_id" validate:"required"`
+	Komentar        string `json:"komentar"`
+}
+
+// UpdatePhaseChangeRequestStatusRequest represents phase change request status update data
+type UpdatePhaseChangeRequestStatusRequest struct {
+	Status string `json:"status" validate:"required"`
+}
+
 // =============================================================================
 // English aliases for compatibility with existing code
 // =============================================================================

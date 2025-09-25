@@ -35,7 +35,7 @@ func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 		) task_count ON p.projekat_id = task_count.projekat_id
 		LEFT JOIN (
 			SELECT projekat_id, COUNT(*) as cnt 
-			FROM clanovi_projekta 
+			FROM clanoviprojekta 
 			GROUP BY projekat_id
 		) member_count ON p.projekat_id = member_count.projekat_id
 		ORDER BY p.projekat_id DESC
@@ -108,7 +108,7 @@ func (s *ProjectService) CreateProject(req models.CreateProjectRequest) error {
 
 	// Add team members
 	for _, memberID := range req.ClanoviTima {
-		memberQuery := `INSERT INTO clanovi_projekta (projekat_id, korisnik_id) VALUES ($1, $2)`
+		memberQuery := `INSERT INTO clanoviprojekta (projekat_id, korisnik_id) VALUES ($1, $2)`
 		_, err = tx.Exec(memberQuery, projectID, memberID)
 		if err != nil {
 			return err
@@ -158,7 +158,7 @@ func (s *ProjectService) GetProjectMembers(projectID int) ([]models.Korisnici, e
 		       k.uloga_id, u.naziv_uloge
 		FROM korisnici k
 		JOIN uloge u ON k.uloga_id = u.uloga_id
-		JOIN clanovi_projekta cp ON k.korisnik_id = cp.korisnik_id
+		JOIN clanoviprojekta cp ON k.korisnik_id = cp.korisnik_id
 		WHERE cp.projekat_id = $1
 		ORDER BY k.korisnicko_ime
 	`
@@ -186,13 +186,13 @@ func (s *ProjectService) GetProjectMembers(projectID int) ([]models.Korisnici, e
 }
 
 func (s *ProjectService) AddProjectMember(projectID, userID int) error {
-	query := `INSERT INTO clanovi_projekta (projekat_id, korisnik_id) VALUES ($1, $2)`
+	query := `INSERT INTO clanoviprojekta (projekat_id, korisnik_id) VALUES ($1, $2)`
 	_, err := s.db.Exec(query, projectID, userID)
 	return err
 }
 
 func (s *ProjectService) RemoveProjectMember(projectID, userID int) error {
-	query := `DELETE FROM clanovi_projekta WHERE projekat_id = $1 AND korisnik_id = $2`
+	query := `DELETE FROM clanoviprojekta WHERE projekat_id = $1 AND korisnik_id = $2`
 	_, err := s.db.Exec(query, projectID, userID)
 	return err
 }

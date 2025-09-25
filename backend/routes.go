@@ -12,7 +12,9 @@ func setupRoutes(router *mux.Router,
 	taskHandler *handlers.TaskHandler,
 	documentHandler *handlers.DocumentHandler,
 	workflowHandler *handlers.WorkflowHandler,
-	analyticsHandler *handlers.AnalyticsHandler) {
+	analyticsHandler *handlers.AnalyticsHandler,
+	taskCommentHandler *handlers.TaskCommentHandler,
+	phaseChangeRequestHandler *handlers.PhaseChangeRequestHandler) {
 
 	// API versioning
 	api := router.PathPrefix("/api/v1").Subrouter()
@@ -54,8 +56,23 @@ func setupRoutes(router *mux.Router,
 	protected.HandleFunc("/tasks/{id}", taskHandler.GetTask).Methods("GET")
 	protected.HandleFunc("/tasks/{id}", taskHandler.UpdateTask).Methods("PUT")
 	protected.HandleFunc("/tasks/{id}", taskHandler.DeleteTask).Methods("DELETE")
-	protected.HandleFunc("/tasks/{id}/comments", taskHandler.GetTaskComments).Methods("GET")
-	protected.HandleFunc("/tasks/{id}/comments", taskHandler.AddTaskComment).Methods("POST")
+
+	// Task Comment routes
+	protected.HandleFunc("/tasks/{id}/comments", taskCommentHandler.GetTaskComments).Methods("GET")
+	protected.HandleFunc("/tasks/{id}/comments", taskCommentHandler.CreateTaskComment).Methods("POST")
+	protected.HandleFunc("/comments/{id}", taskCommentHandler.GetCommentByID).Methods("GET")
+	protected.HandleFunc("/comments/{id}", taskCommentHandler.UpdateTaskComment).Methods("PUT")
+	protected.HandleFunc("/comments/{id}", taskCommentHandler.DeleteTaskComment).Methods("DELETE")
+	protected.HandleFunc("/users/{id}/comments", taskCommentHandler.GetUserComments).Methods("GET")
+
+	// Phase Change Request routes
+	protected.HandleFunc("/tasks/{id}/phase-requests", phaseChangeRequestHandler.GetTaskPhaseChangeRequests).Methods("GET")
+	protected.HandleFunc("/tasks/{id}/phase-requests", phaseChangeRequestHandler.CreatePhaseChangeRequest).Methods("POST")
+	protected.HandleFunc("/phase-requests/pending", phaseChangeRequestHandler.GetPendingPhaseChangeRequests).Methods("GET")
+	protected.HandleFunc("/phase-requests/{id}", phaseChangeRequestHandler.GetPhaseChangeRequestByID).Methods("GET")
+	protected.HandleFunc("/phase-requests/{id}/status", phaseChangeRequestHandler.UpdatePhaseChangeRequestStatus).Methods("PUT")
+	protected.HandleFunc("/phase-requests/{id}", phaseChangeRequestHandler.DeletePhaseChangeRequest).Methods("DELETE")
+	protected.HandleFunc("/users/{id}/phase-requests", phaseChangeRequestHandler.GetUserPhaseChangeRequests).Methods("GET")
 
 	// Document routes
 	protected.HandleFunc("/documents", documentHandler.GetAllDocuments).Methods("GET")

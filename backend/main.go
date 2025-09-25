@@ -24,6 +24,9 @@ func main() {
 	}
 	defer db.Close()
 
+	// Set database for middleware
+	setDB(db)
+
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
 
@@ -35,6 +38,8 @@ func main() {
 	documentService := services.NewDocumentService(db)
 	workflowService := services.NewWorkflowService(db)
 	analyticsService := services.NewAnalyticsService(db)
+	taskCommentService := services.NewTaskCommentService(db)
+	phaseChangeRequestService := services.NewPhaseChangeRequestService(db)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(authService, analyticsService)
@@ -44,10 +49,12 @@ func main() {
 	documentHandler := handlers.NewDocumentHandler(documentService, analyticsService)
 	workflowHandler := handlers.NewWorkflowHandler(workflowService, analyticsService)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService)
+	taskCommentHandler := handlers.NewTaskCommentHandler(taskCommentService, analyticsService)
+	phaseChangeRequestHandler := handlers.NewPhaseChangeRequestHandler(phaseChangeRequestService, analyticsService)
 
 	// Setup routes
 	router := mux.NewRouter()
-	setupRoutes(router, authHandler, userHandler, projectHandler, taskHandler, documentHandler, workflowHandler, analyticsHandler)
+	setupRoutes(router, authHandler, userHandler, projectHandler, taskHandler, documentHandler, workflowHandler, analyticsHandler, taskCommentHandler, phaseChangeRequestHandler)
 
 	// CORS setup
 	c := cors.New(cors.Options{
@@ -68,8 +75,8 @@ func connectDB() (*sql.DB, error) {
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "5432")
 	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "postgres")
-	dbname := getEnv("DB_NAME", "research_institute_db")
+	password := getEnv("DB_PASSWORD", "123")
+	dbname := getEnv("DB_NAME", "research_institute")
 
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
