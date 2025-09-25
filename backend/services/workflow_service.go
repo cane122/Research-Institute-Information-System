@@ -21,7 +21,7 @@ func NewWorkflowService(db *sql.DB) *WorkflowService {
 func (s *WorkflowService) GetAllWorkflows() ([]models.RadniTokovi, error) {
 	query := `
 		SELECT radni_tok_id, naziv, tip_toka, opis, da_li_je_sablon
-		FROM radni_tokovi
+		FROM radnitokovi
 		ORDER BY naziv
 	`
 
@@ -45,6 +45,29 @@ func (s *WorkflowService) GetAllWorkflows() ([]models.RadniTokovi, error) {
 	}
 
 	return workflows, nil
+}
+
+func (r *WorkflowService) GetByWorkflowType(workflowType string) (*models.RadniTokovi, error) {
+	query := `
+		SELECT radni_tok_id, naziv, tip_toka, opis, da_li_je_sablon
+		FROM radnitokovi
+		WHERE tip_toka = $1
+	`
+
+	var workflow models.RadniTokovi
+	err := r.db.QueryRow(query, workflowType).Scan(
+		&workflow.RadniTokID,
+		&workflow.Naziv,
+		&workflow.TipToka,
+		&workflow.Opis,
+		&workflow.DaLiJeSablon,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &workflow, nil
 }
 
 func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, error) {
@@ -78,13 +101,37 @@ func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, erro
 
 func (s *WorkflowService) CreateWorkflow(workflow models.RadniTokovi) error {
 	query := `
-		INSERT INTO radni_tokovi (naziv, tip_toka, opis, da_li_je_sablon)
+		INSERT INTO radnitokovi (naziv, tip_toka, opis, da_li_je_sablon)
 		VALUES ($1, $2, $3, $4)
 	`
 
 	_, err := s.db.Exec(query, workflow.Naziv, workflow.TipToka,
 		workflow.Opis, workflow.DaLiJeSablon)
 
+	return err
+}
+
+func (s *WorkflowService) Update(workflow *models.RadniTokovi) error {
+	query := `
+		UPDATE radnitokovi 
+		SET naziv = $1, tip_toka = $2, opis = $3, da_li_je_sablon = $4
+		WHERE radni_tok_id = $5
+	`
+
+	_, err := s.db.Exec(query,
+		workflow.Naziv,
+		workflow.TipToka,
+		workflow.Opis,
+		workflow.DaLiJeSablon,
+		workflow.RadniTokID,
+	)
+
+	return err
+}
+
+func (s *WorkflowService) DeleteWorkflow(id int) error {
+	query := `DELETE FROM radnitokovi WHERE radni_tok_id = $1`
+	_, err := s.db.Exec(query, id)
 	return err
 }
 
