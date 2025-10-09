@@ -151,15 +151,15 @@ func (s *DocumentService) GetDocumentByID(documentID int) (models.Dokumenti, err
 	return doc, err
 }
 
-func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string, userID int) error {
+func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string, userID int) (int, error) {
 	// Create upload directory if it doesn't exist
 	if err := os.MkdirAll(s.uploadPath, 0755); err != nil {
-		return fmt.Errorf("failed to create upload directory: %w", err)
+		return 0, fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer tx.Rollback()
 
@@ -167,15 +167,15 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	var documentID int
 	docQuery := `
 		INSERT INTO dokumenti (projekat_id, naziv_dokumenta, folder_id, opis, 
-		                      tip_dokumenta, jezik_dokumenta, kreirao_korisnik_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		                      tip_dokumenta, jezik_dokumenta, kljucne_reci, kreirao_korisnik_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING dokument_id
 	`
 
 	err = tx.QueryRow(docQuery, req.ProjekatID, req.NazivDokumenta, req.FolderID,
-		req.Opis, req.TipDokumenta, req.JezikDokumenta, userID).Scan(&documentID)
+		req.Opis, req.TipDokumenta, req.JezikDokumenta, req.KljucneReci, userID).Scan(&documentID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Generate unique file path
@@ -188,13 +188,13 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	// Save file to disk
 	file, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return 0, fmt.Errorf("failed to create file: %w", err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, strings.NewReader(string(fileData)))
 	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return 0, fmt.Errorf("failed to write file: %w", err)
 	}
 
 	// Calculate file size in MB
@@ -209,17 +209,21 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 
 	_, err = tx.Exec(versionQuery, documentID, filePath, fileSizeMB, userID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Add tags if provided
 	for _, tagName := range req.Tagovi {
 		if err := s.addDocumentTagInTx(tx, documentID, tagName); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return documentID, nil
 }
 
 func (s *DocumentService) addDocumentTagInTx(tx *sql.Tx, documentID int, tagName string) error {
@@ -480,4 +484,206 @@ func (s *DocumentService) CreateFolder(folder models.Folderi) error {
 
 	_, err := s.db.Exec(query, folder.NazivFoldera, folder.RoditeljFolderID, folder.VlasnikID)
 	return err
+}
+
+// SaveLLMSummary saves an AI-generated summary for a document
+func (s *DocumentService) SaveLLMSummary(documentID int, summary string) error {
+	query := `
+		INSERT INTO llmsazeci (dokument_id, sazetak)
+		VALUES ($1, $2)
+	`
+
+	_, err := s.db.Exec(query, documentID, summary)
+	return err
+}
+
+// GetLLMSummaries retrieves all AI summaries for a document
+func (s *DocumentService) GetLLMSummaries(documentID int) ([]models.LLMSazeci, error) {
+	query := `
+		SELECT sazetak_id, dokument_id, verzija_oznaka, sazetak, datum_kreiranja
+		FROM llmsazeci
+		WHERE dokument_id = $1
+		ORDER BY datum_kreiranja DESC
+	`
+
+	rows, err := s.db.Query(query, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var summaries []models.LLMSazeci
+	for rows.Next() {
+		var summary models.LLMSazeci
+		err := rows.Scan(
+			&summary.SazetakID,
+			&summary.DokumentID,
+			&summary.VerzijaOznaka,
+			&summary.Sazetak,
+			&summary.DatumKreiranja,
+		)
+		if err != nil {
+			return nil, err
+		}
+		summaries = append(summaries, summary)
+	}
+
+	return summaries, rows.Err()
+}
+
+// GetAllTags retrieves all tags from the database
+func (s *DocumentService) GetAllTags() ([]models.Tag, error) {
+	query := `
+		SELECT tag_id, naziv_taga
+		FROM tagovi
+		ORDER BY naziv_taga ASC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tags: %w", err)
+	}
+	defer rows.Close()
+
+	var tags []models.Tag
+	for rows.Next() {
+		var tag models.Tag
+		err := rows.Scan(&tag.TagID, &tag.NazivTaga)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan tag: %w", err)
+		}
+		tags = append(tags, tag)
+	}
+
+	return tags, rows.Err()
+}
+
+// GetDocumentPermissions retrieves all permissions for a document
+func (s *DocumentService) GetDocumentPermissions(documentID int) ([]models.DocumentPermissionResponse, error) {
+	query := `
+		SELECT 
+			dd.dozvola_id,
+			dd.dokument_id,
+			dd.korisnik_id,
+			k.korisnicko_ime,
+			COALESCE(k.ime, '') as ime,
+			COALESCE(k.prezime, '') as prezime,
+			dd.moze_citati,
+			dd.moze_menjati,
+			dd.moze_brisati
+		FROM dozvoledokumenata dd
+		JOIN korisnici k ON dd.korisnik_id = k.korisnik_id
+		WHERE dd.dokument_id = $1
+		ORDER BY k.korisnicko_ime ASC
+	`
+
+	rows, err := s.db.Query(query, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query document permissions: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []models.DocumentPermissionResponse
+	for rows.Next() {
+		var perm models.DocumentPermissionResponse
+		err := rows.Scan(
+			&perm.DozvoljID,
+			&perm.DokumentID,
+			&perm.KorisnikID,
+			&perm.KorisnickoIme,
+			&perm.Ime,
+			&perm.Prezime,
+			&perm.MozeCitati,
+			&perm.MozeMenjati,
+			&perm.MozeBrisati,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan permission: %w", err)
+		}
+		permissions = append(permissions, perm)
+	}
+
+	return permissions, rows.Err()
+}
+
+// SetDocumentPermission sets or updates permissions for a user on a document
+func (s *DocumentService) SetDocumentPermission(req models.DocumentPermissionRequest) error {
+	query := `
+		INSERT INTO dozvoledokumenata (dokument_id, korisnik_id, moze_citati, moze_menjati, moze_brisati)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (dokument_id, korisnik_id)
+		DO UPDATE SET
+			moze_citati = EXCLUDED.moze_citati,
+			moze_menjati = EXCLUDED.moze_menjati,
+			moze_brisati = EXCLUDED.moze_brisati
+	`
+
+	_, err := s.db.Exec(query, req.DokumentID, req.KorisnikID, req.MozeCitati, req.MozeMenjati, req.MozeBrisati)
+	if err != nil {
+		return fmt.Errorf("failed to set document permission: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveDocumentPermission removes a user's permission from a document
+func (s *DocumentService) RemoveDocumentPermission(documentID int, userID int) error {
+	query := `DELETE FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+
+	_, err := s.db.Exec(query, documentID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to remove document permission: %w", err)
+	}
+
+	return nil
+}
+
+// CheckUserPermission checks if a user has specific permission on a document
+func (s *DocumentService) CheckUserPermission(documentID int, userID int, permissionType string) (bool, error) {
+	// First check if user is the document creator or admin - they have full access
+	var creatorID int
+	var userRole string
+
+	checkQuery := `
+		SELECT d.kreirao_korisnik_id, k.naziv_uloge
+		FROM dokumenti d
+		JOIN korisnici u ON u.korisnik_id = $2
+		LEFT JOIN uloge k ON u.uloga_id = k.uloga_id
+		WHERE d.dokument_id = $1
+	`
+
+	err := s.db.QueryRow(checkQuery, documentID, userID).Scan(&creatorID, &userRole)
+	if err != nil && err != sql.ErrNoRows {
+		return false, fmt.Errorf("failed to check user role: %w", err)
+	}
+
+	// Grant full access to document creator or admin
+	if creatorID == userID || userRole == "admin" {
+		return true, nil
+	}
+
+	// Check specific permission for regular users
+	var hasPermission bool
+	var query string
+
+	switch permissionType {
+	case "read":
+		query = `SELECT moze_citati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+	case "write":
+		query = `SELECT moze_menjati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+	case "delete":
+		query = `SELECT moze_brisati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+	default:
+		return false, fmt.Errorf("invalid permission type: %s", permissionType)
+	}
+
+	err = s.db.QueryRow(query, documentID, userID).Scan(&hasPermission)
+	if err == sql.ErrNoRows {
+		return false, nil // No permission row = no permission
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to check permission: %w", err)
+	}
+
+	return hasPermission, nil
 }

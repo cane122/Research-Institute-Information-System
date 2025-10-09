@@ -136,10 +136,13 @@ export class DocumentService {
         opis: documentData.description || '',
         tip_dokumenta: documentData.type || 'Document',
         jezik_dokumenta: documentData.language || 'Serbian',
-        tagovi: documentData.tags || []
+        tagovi: documentData.tags || [],
+        kljucne_reci: documentData.keywords || ''
       }
 
-      await UploadDocument(request, fileData, file.name)
+      // UploadDocument now returns the document ID
+      const documentId = await UploadDocument(request, fileData, file.name)
+      return documentId
     } catch (error) {
       console.error('Error uploading document:', error)
       throw new Error('Greška pri učitavanju dokumenta: ' + error.message)

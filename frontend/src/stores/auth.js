@@ -37,6 +37,21 @@ export const useAuthStore = defineStore('auth', () => {
         // Store user data in localStorage for persistence
         localStorage.setItem('user', JSON.stringify(user.value))
         
+        // Log login activity
+        try {
+          const { LogActivity } = await import('../../wailsjs/go/main/App.js')
+          LogActivity({
+            tip_aktivnosti: 'LOGIN',
+            entitet_tip: 'KORISNIK',
+            entitet_id: user.value.korisnikID,
+            naziv_entiteta: user.value.korisnickoIme,
+            opis: `User logged in: ${user.value.korisnickoIme}`,
+            rezultat: 'SUCCESS'
+          }).catch(err => console.error('Failed to log login activity:', err))
+        } catch (err) {
+          console.error('Failed to log login activity:', err)
+        }
+        
         return { 
           success: true, 
           message: response.message,
@@ -63,8 +78,28 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     try {
+      const userInfo = user.value // Store before clearing
+      
       // Call backend logout
       await Logout()
+      
+      // Log logout activity
+      if (userInfo) {
+        try {
+          const { LogActivity } = await import('../../wailsjs/go/main/App.js')
+          await LogActivity({
+            tip_aktivnosti: 'LOGOUT',
+            entitet_tip: 'KORISNIK',
+            entitet_id: userInfo.korisnikID,
+            naziv_entiteta: userInfo.korisnickoIme,
+            opis: `User logged out: ${userInfo.korisnickoIme}`,
+            rezultat: 'SUCCESS'
+          })
+        } catch (logErr) {
+          console.error('Failed to log logout activity:', logErr)
+        }
+      }
+      
       user.value = null
       localStorage.removeItem('user')
     } catch (err) {

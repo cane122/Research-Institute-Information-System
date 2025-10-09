@@ -134,6 +134,7 @@ CREATE TABLE Dokumenti (
     opis TEXT,
     tip_dokumenta VARCHAR(50), -- e.g., 'Istraživački rad', 'PDF', 'CSV'
     jezik_dokumenta VARCHAR(50),
+    kljucne_reci TEXT, -- Free-form keywords separated by commas
     radni_tok_id INT,
     trenutna_faza_id INT, -- If document follows workflow
     kreirao_korisnik_id INT NOT NULL,
@@ -350,3 +351,87 @@ INSERT INTO Faze (radni_tok_id, naziv_faze, redosled) VALUES
 (3, 'Odobravanje', 3),
 (3, 'Finalizovanje', 4),
 (3, 'Arhiviranje', 5);
+
+-- ============================================================================
+-- Activity Log System
+-- ============================================================================
+
+-- Table for logging all system activities
+CREATE TABLE LogAktivnosti (
+    log_id SERIAL PRIMARY KEY,
+    korisnik_id INT,
+    tip_aktivnosti VARCHAR(50) NOT NULL, -- 'UPLOAD', 'EDIT', 'DELETE', 'VIEW', 'LOGIN', 'LOGOUT', 'SHARE', 'CREATE_PROJECT', etc.
+    entitet_tip VARCHAR(50), -- 'DOKUMENT', 'PROJEKAT', 'ZADATAK', 'KORISNIK', etc.
+    entitet_id INT, -- ID of the affected entity
+    naziv_entiteta VARCHAR(255), -- Name/title of the entity for easier querying
+    opis TEXT, -- Detailed description of the activity
+    ip_adresa VARCHAR(45), -- IPv4 or IPv6
+    user_agent TEXT, -- Browser/client information
+    rezultat VARCHAR(20) DEFAULT 'SUCCESS', -- 'SUCCESS', 'FAILED', 'PENDING'
+    dodatne_informacije JSONB, -- Additional metadata in JSON format
+    kreiran_datuma TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (korisnik_id) REFERENCES Korisnici(korisnik_id) ON DELETE SET NULL
+);
+
+-- Indexes for better query performance
+CREATE INDEX idx_log_korisnik ON LogAktivnosti(korisnik_id);
+CREATE INDEX idx_log_tip ON LogAktivnosti(tip_aktivnosti);
+CREATE INDEX idx_log_entitet ON LogAktivnosti(entitet_tip, entitet_id);
+CREATE INDEX idx_log_datum ON LogAktivnosti(kreiran_datuma DESC);
+CREATE INDEX idx_log_rezultat ON LogAktivnosti(rezultat);
+
+-- ============================================================================
+-- Analytics Views
+-- ============================================================================
+
+-- View for document statistics
+CREATE OR REPLACE VIEW StatistikaDokumenata AS
+SELECT 
+    COUNT(*) as ukupno_dokumenata,
+    COUNT(*) FILTER (WHERE datuma_postavke >= CURRENT_DATE - INTERVAL '30 days') as novih_dokumenata_mesecno,
+    COUNT(DISTINCT kreirao_korisnik_id) as broj_autora,
+    COUNT(DISTINCT projekat_id) FILTER (WHERE projekat_id IS NOT NULL) as broj_projekata_sa_dokumentima,
+    AVG(broj_verzija) as prosecno_verzija_po_dokumentu
+FROM (
+    SELECT 
+        d.dokument_id,
+        d.kreirao_korisnik_id,
+        d.projekat_id,
+        d.datuma_postavke,
+        COUNT(v.verzija_id) as broj_verzija
+    FROM Dokumenti d
+    LEFT JOIN VerzijeDokumenata v ON d.dokument_id = v.dokument_id
+    GROUP BY d.dokument_id, d.kreirao_korisnik_id, d.projekat_id, d.datuma_postavke
+) doc_stats;
+
+-- View for activity statistics
+CREATE OR REPLACE VIEW StatistikaAktivnosti AS
+SELECT 
+    tip_aktivnosti,
+    COUNT(*) as broj_aktivnosti,
+    COUNT(DISTINCT korisnik_id) as broj_korisnika,
+    COUNT(*) FILTER (WHERE kreiran_datuma >= CURRENT_DATE) as danas,
+    COUNT(*) FILTER (WHERE kreiran_datuma >= CURRENT_DATE - INTERVAL '7 days') as ove_nedelje,
+    COUNT(*) FILTER (WHERE kreiran_datuma >= CURRENT_DATE - INTERVAL '30 days') as ovog_meseca,
+    MAX(kreiran_datuma) as poslednja_aktivnost
+FROM LogAktivnosti
+GROUP BY tip_aktivnosti;
+
+-- View for recent activity feed
+CREATE OR REPLACE VIEW SkornjeAktivnosti AS
+SELECT 
+    l.log_id,
+    l.korisnik_id,
+    COALESCE(k.ime || ' ' || k.prezime, k.korisnicko_ime, 'System') as korisnik_ime,
+    l.tip_aktivnosti,
+    l.entitet_tip,
+    l.entitet_id,
+    l.naziv_entiteta,
+    l.opis,
+    l.rezultat,
+    l.kreiran_datuma
+FROM LogAktivnosti l
+LEFT JOIN Korisnici k ON l.korisnik_id = k.korisnik_id
+ORDER BY l.kreiran_datuma DESC
+LIMIT 100;
+

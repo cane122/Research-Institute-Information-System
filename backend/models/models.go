@@ -136,6 +136,7 @@ type Dokumenti struct {
 	Opis              *string    `json:"opis" db:"opis"`
 	TipDokumenta      *string    `json:"tip_dokumenta" db:"tip_dokumenta"`
 	JezikDokumenta    *string    `json:"jezik_dokumenta" db:"jezik_dokumenta"`
+	KljucneReci       *string    `json:"kljucne_reci" db:"kljucne_reci"`
 	RadniTokID        *int       `json:"radni_tok_id" db:"radni_tok_id"`
 	TrenutnaFazaID    *int       `json:"trenutna_faza_id" db:"trenutna_faza_id"`
 	KreiraoKorisnikID int        `json:"kreirao_korisnik_id" db:"kreirao_korisnik_id"`
@@ -215,16 +216,21 @@ type IstorijaFazaDokumenta struct {
 
 // LogAktivnosti represents system activity logs
 type LogAktivnosti struct {
-	LogID          int64     `json:"log_id" db:"log_id"`
-	KorisnikID     *int      `json:"korisnik_id" db:"korisnik_id"`
-	TipAktivnosti  string    `json:"tip_aktivnosti" db:"tip_aktivnosti"`
-	Opis           *string   `json:"opis" db:"opis"`
-	CiljaniEntitet *string   `json:"ciljani_entitet" db:"ciljani_entitet"`
-	CiljaniID      *int      `json:"ciljani_id" db:"ciljani_id"`
-	Datuma         time.Time `json:"datuma" db:"datuma"`
+	LogID              int       `json:"log_id" db:"log_id"`
+	KorisnikID         *int      `json:"korisnik_id" db:"korisnik_id"`
+	TipAktivnosti      string    `json:"tip_aktivnosti" db:"tip_aktivnosti"`
+	EntitetTip         *string   `json:"entitet_tip" db:"entitet_tip"`
+	EntitetID          *int      `json:"entitet_id" db:"entitet_id"`
+	NazivEntiteta      *string   `json:"naziv_entiteta" db:"naziv_entiteta"`
+	Opis               *string   `json:"opis" db:"opis"`
+	IPAdresa           *string   `json:"ip_adresa" db:"ip_adresa"`
+	UserAgent          *string   `json:"user_agent" db:"user_agent"`
+	Rezultat           string    `json:"rezultat" db:"rezultat"`
+	DodatneInformacije *string   `json:"dodatne_informacije" db:"dodatne_informacije"` // JSONB
+	KreiranDatuma      time.Time `json:"kreiran_datuma" db:"kreiran_datuma" ts_type:"string"`
 
 	// Joined fields
-	ImeKorisnika string `json:"ime_korisnika,omitempty" db:"ime_korisnika"`
+	KorisnikIme string `json:"korisnik_ime,omitempty" db:"korisnik_ime"`
 }
 
 // =============================================================================
@@ -292,7 +298,79 @@ type UploadDocumentRequest struct {
 	Opis           string   `json:"opis"`
 	TipDokumenta   string   `json:"tip_dokumenta"`
 	JezikDokumenta string   `json:"jezik_dokumenta"`
-	Tagovi         []string `json:"tagovi"`
+	Tagovi         []string `json:"tagovi"`       // Tags from database
+	KljucneReci    string   `json:"kljucne_reci"` // Free-form keywords
+}
+
+// DocumentPermissionRequest represents a request to set permissions for a user on a document
+type DocumentPermissionRequest struct {
+	DokumentID  int  `json:"dokument_id" validate:"required"`
+	KorisnikID  int  `json:"korisnik_id" validate:"required"`
+	MozeCitati  bool `json:"moze_citati"`
+	MozeMenjati bool `json:"moze_menjati"`
+	MozeBrisati bool `json:"moze_brisati"`
+}
+
+// DocumentPermissionResponse includes user details with permissions
+type DocumentPermissionResponse struct {
+	DozvoljID     int    `json:"dozvola_id"`
+	DokumentID    int    `json:"dokument_id"`
+	KorisnikID    int    `json:"korisnik_id"`
+	KorisnickoIme string `json:"korisnicko_ime"`
+	Ime           string `json:"ime"`
+	Prezime       string `json:"prezime"`
+	MozeCitati    bool   `json:"moze_citati"`
+	MozeMenjati   bool   `json:"moze_menjati"`
+	MozeBrisati   bool   `json:"moze_brisati"`
+}
+
+// =============================================================================
+// Activity Log Models
+// =============================================================================
+
+// ActivityLogRequest for creating activity logs
+type ActivityLogRequest struct {
+	TipAktivnosti      string                 `json:"tip_aktivnosti" validate:"required"`
+	EntitetTip         string                 `json:"entitet_tip,omitempty"`
+	EntitetID          int                    `json:"entitet_id,omitempty"`
+	NazivEntiteta      string                 `json:"naziv_entiteta,omitempty"`
+	Opis               string                 `json:"opis,omitempty"`
+	Rezultat           string                 `json:"rezultat,omitempty"`
+	DodatneInformacije map[string]interface{} `json:"dodatne_informacije,omitempty"`
+}
+
+// StatistikaDokumenata represents document statistics
+type StatistikaDokumenata struct {
+	UkupnoDokumenata           int     `json:"ukupno_dokumenata" db:"ukupno_dokumenata"`
+	NovihDokumenataMesecno     int     `json:"novih_dokumenata_mesecno" db:"novih_dokumenata_mesecno"`
+	BrojAutora                 int     `json:"broj_autora" db:"broj_autora"`
+	BrojProjekataSaDokumentima int     `json:"broj_projekata_sa_dokumentima" db:"broj_projekata_sa_dokumentima"`
+	ProsecnoVerzijaPoDokumentu float64 `json:"prosecno_verzija_po_dokumentu" db:"prosecno_verzija_po_dokumentu"`
+}
+
+// StatistikaAktivnosti represents activity statistics
+type StatistikaAktivnosti struct {
+	TipAktivnosti      string    `json:"tip_aktivnosti" db:"tip_aktivnosti"`
+	BrojAktivnosti     int       `json:"broj_aktivnosti" db:"broj_aktivnosti"`
+	BrojKorisnika      int       `json:"broj_korisnika" db:"broj_korisnika"`
+	Danas              int       `json:"danas" db:"danas"`
+	OveNedelje         int       `json:"ove_nedelje" db:"ove_nedelje"`
+	OvogMeseca         int       `json:"ovog_meseca" db:"ovog_meseca"`
+	PoslednjaAktivnost time.Time `json:"poslednja_aktivnost" db:"poslednja_aktivnost" ts_type:"string"`
+}
+
+// SkornjeAktivnosti represents recent activity feed
+type SkornjeAktivnosti struct {
+	LogID         int       `json:"log_id" db:"log_id"`
+	KorisnikID    *int      `json:"korisnik_id" db:"korisnik_id"`
+	KorisnikIme   string    `json:"korisnik_ime" db:"korisnik_ime"`
+	TipAktivnosti string    `json:"tip_aktivnosti" db:"tip_aktivnosti"`
+	EntitetTip    *string   `json:"entitet_tip" db:"entitet_tip"`
+	EntitetID     *int      `json:"entitet_id" db:"entitet_id"`
+	NazivEntiteta *string   `json:"naziv_entiteta" db:"naziv_entiteta"`
+	Opis          *string   `json:"opis" db:"opis"`
+	Rezultat      string    `json:"rezultat" db:"rezultat"`
+	KreiranDatuma time.Time `json:"kreiran_datuma" db:"kreiran_datuma" ts_type:"string"`
 }
 
 // =============================================================================

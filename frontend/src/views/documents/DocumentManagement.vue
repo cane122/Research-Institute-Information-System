@@ -6,6 +6,13 @@
         <h2>Document Management</h2>
         <div class="header-actions">
           <button 
+            class="btn btn-secondary" 
+            @click="$router.push('/documents/analytics')"
+            style="margin-right: 10px;"
+          >
+            📊 Analytics
+          </button>
+          <button 
             class="btn btn-primary" 
             @click="goToAddDocument"
           >
@@ -39,6 +46,7 @@
               type="text" 
               placeholder="Search by author"
               class="sidebar-input"
+              @input="applyFilters"
             >
           </div>
 
@@ -65,24 +73,26 @@
           <div class="sidebar-section">
             <h4>Tags</h4>
             <input 
+              v-model="tagSearchQuery"
               type="text" 
-              placeholder="Search"
+              placeholder="Search tags..."
               class="sidebar-input"
               style="margin-bottom: 10px;"
             >
             <div class="tags-section">
               <div class="tag-list">
-                <div class="tag-item">
-                  <input type="checkbox" id="machine-learning" v-model="selectedTags" value="machine-learning">
-                  <label for="machine-learning">Machine learning</label>
+                <div v-for="tag in filteredTags" :key="tag.tag_id" class="tag-item">
+                  <input 
+                    type="checkbox" 
+                    :id="`tag-${tag.tag_id}`" 
+                    :value="tag.naziv_taga"
+                    v-model="selectedTags"
+                    @change="applyFilters"
+                  >
+                  <label :for="`tag-${tag.tag_id}`">{{ tag.naziv_taga }}</label>
                 </div>
-                <div class="tag-item">
-                  <input type="checkbox" id="climate" v-model="selectedTags" value="climate">
-                  <label for="climate">Climate</label>
-                </div>
-                <div class="tag-item">
-                  <input type="checkbox" id="quantum-physics" v-model="selectedTags" value="quantum-physics">
-                  <label for="quantum-physics">Quantum Physics</label>
+                <div v-if="filteredTags.length === 0" class="empty-tags">
+                  No tags available
                 </div>
               </div>
             </div>
@@ -99,23 +109,18 @@
           <!-- Content Header with Search and Controls -->
           <div class="content-header">
             <div class="search-box">
-              <select v-model="selectedType" class="sidebar-select" style="width: auto;">
+              <select v-model="selectedType" class="sidebar-select" style="width: auto;" @change="applyFilters">
                 <option value="">All Types</option>
-                <option value="PDF">PDF</option>
-                <option value="DOC">DOC</option>
-                <option value="CSV">CSV</option>
-                <option value="Research Paper">Research Paper</option>
+                <option v-for="type in availableTypes" :key="type" :value="type">{{ type }}</option>
               </select>
-              <select v-model="selectedProject" class="sidebar-select" style="width: auto;">
+              <select v-model="selectedProject" class="sidebar-select" style="width: auto;" @change="applyFilters">
                 <option value="">All Projects</option>
-                <option value="AI Research">AI Research</option>
-                <option value="Climate">Climate</option>
-                <option value="Project A">Project A</option>
+                <option v-for="project in availableProjects" :key="project" :value="project">{{ project }}</option>
               </select>
-              <button class="search-box button">Search</button>
+              <button class="search-box button" @click="applyFilters">Search</button>
             </div>
             <div class="view-toggles">
-              <label>
+              <label style="margin-left: 15px;">
                 <input type="checkbox" v-model="showFolderPreview">
                 Folder preview
               </label>
@@ -141,103 +146,204 @@
 
             <!-- Documents Table -->
             <div v-else class="documents-table">
-              <div class="table-header">
-                <div class="header-cell">
-                  <input 
-                    type="checkbox" 
-                    @change="toggleSelectAll"
-                    :checked="allSelected"
+              <!-- Folder Preview View -->
+              <template v-if="showFolderPreview">
+                <div v-for="(docs, projectName) in groupedDocuments" :key="projectName" class="project-folder">
+                  <!-- Folder Header (clickable to expand/collapse) -->
+                  <div 
+                    class="folder-header" 
+                    @click="toggleProjectFolder(projectName)"
+                    :class="{ expanded: expandedProjects.includes(projectName) }"
                   >
-                </div>
-                <div class="header-cell sortable" @click="sortBy('name')">
-                  Document Name
-                  <span class="sort-indicator" v-if="sortField === 'name'">
-                    {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </div>
-                <div class="header-cell sortable" @click="sortBy('author')">
-                  Author
-                  <span class="sort-indicator" v-if="sortField === 'author'">
-                    {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </div>
-                <div class="header-cell sortable" @click="sortBy('type')">
-                  Type
-                  <span class="sort-indicator" v-if="sortField === 'type'">
-                    {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </div>
-                <div class="header-cell sortable" @click="sortBy('modified')">
-                  Modified
-                  <span class="sort-indicator" v-if="sortField === 'modified'">
-                    {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </div>
-                <div class="header-cell sortable" @click="sortBy('project')">
-                  Project
-                  <span class="sort-indicator" v-if="sortField === 'project'">
-                    {{ sortDirection === 'asc' ? '↑' : '↓' }}
-                  </span>
-                </div>
-                <div class="header-cell">Actions</div>
-              </div>
-
-              <div class="table-body">
-                <div 
-                  v-for="doc in paginatedDocuments" 
-                  :key="doc.id"
-                  class="table-row"
-                  :class="{ selected: selectedDocuments.includes(doc.id) }"
-                >
-                  <div class="cell">
-                    <input 
-                      type="checkbox" 
-                      :checked="selectedDocuments.includes(doc.id)"
-                      @change="toggleDocumentSelection(doc.id)"
-                    >
-                  </div>
-                  <div class="cell document-name">
-                    <span class="file-icon">📄</span>
-                    {{ doc.name }}
-                  </div>
-                  <div class="cell">{{ doc.author }}</div>
-                  <div class="cell">
-                    <span class="type-badge" :class="`type-${doc.type.toLowerCase()}`">
-                      {{ doc.type }}
+                    <span class="folder-icon">
+                      {{ expandedProjects.includes(projectName) ? '📂' : '📁' }}
+                    </span>
+                    <span class="folder-name">{{ projectName }}</span>
+                    <span class="folder-count">({{ docs.length }}) docs</span>
+                    <span class="expand-arrow">
+                      {{ expandedProjects.includes(projectName) ? '▼' : '▶' }}
                     </span>
                   </div>
-                  <div class="cell">{{ formatDate(doc.modified) }}</div>
-                  <div class="cell">{{ doc.project }}</div>
-                  <div class="cell actions">
-                    <button 
-                      class="action-btn view-btn" 
-                      @click="previewDocument(doc)"
-                      title="Preview"
-                    >
-                      View
-                    </button>
-                    <button 
-                      class="action-btn edit-btn" 
-                      @click="editDocument(doc)"
-                      title="Edit"
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      class="action-btn delete-btn" 
-                      @click="deleteDocument(doc.id)"
-                      title="Delete"
-                    >
-                      Delete
-                    </button>
+                  
+                  <!-- Folder Contents (shown when expanded) -->
+                  <div v-if="expandedProjects.includes(projectName)" class="folder-contents">
+                    <div class="table-header">
+                      <div class="header-cell">
+                        <input type="checkbox" @change="toggleSelectAllInGroup(docs)">
+                      </div>
+                      <div class="header-cell">Document Name</div>
+                      <div class="header-cell">Author</div>
+                      <div class="header-cell">Type</div>
+                      <div class="header-cell">Modified</div>
+                      <div class="header-cell">Actions</div>
+                    </div>
+
+                    <div class="table-body">
+                      <div 
+                        v-for="doc in docs" 
+                        :key="doc.dokument_id"
+                        class="table-row document-item"
+                        :class="{ selected: selectedDocuments.includes(doc.dokument_id) }"
+                      >
+                        <div class="cell">
+                          <input 
+                            type="checkbox" 
+                            :checked="selectedDocuments.includes(doc.dokument_id)"
+                            @change="toggleDocumentSelection(doc.dokument_id)"
+                          >
+                        </div>
+                        <div class="cell document-name">
+                          <span class="file-icon">📄</span>
+                          {{ doc.naziv_dokumenta }}
+                        </div>
+                        <div class="cell">{{ doc.ime_kreirao }}</div>
+                        <div class="cell">
+                          <span class="type-badge" :class="`type-${doc.tip_dokumenta?.toLowerCase() || 'document'}`">
+                            {{ doc.tip_dokumenta || 'Document' }}
+                          </span>
+                        </div>
+                        <div class="cell">{{ formatDate(doc.poslednja_izmena || doc.datuma_postavke) }}</div>
+                        <div class="cell actions">
+                          <button 
+                            v-if="doc.permissions?.canRead"
+                            class="action-btn view-btn" 
+                            @click="previewDocument(doc)"
+                            title="Preview"
+                          >
+                            View
+                          </button>
+                          <button 
+                            v-if="doc.permissions?.canWrite"
+                            class="action-btn edit-btn" 
+                            @click="editDocument(doc)"
+                            title="Edit"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            v-if="doc.permissions?.canDelete"
+                            class="action-btn delete-btn" 
+                            @click="deleteDocument(doc.dokument_id)"
+                            title="Delete"
+                          >
+                            Delete
+                          </button>
+                          <span v-if="!doc.permissions?.canRead && !doc.permissions?.canWrite && !doc.permissions?.canDelete" class="no-access-text">
+                            No Access
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </template>
+
+              <!-- Regular Table View -->
+              <template v-else>
+                <div class="table-header">
+                  <div class="header-cell">
+                    <input 
+                      type="checkbox" 
+                      @change="toggleSelectAll"
+                      :checked="allSelected"
+                    >
+                  </div>
+                  <div class="header-cell sortable" @click="sortBy('naziv_dokumenta')">
+                    Document Name
+                    <span class="sort-indicator" v-if="sortField === 'naziv_dokumenta'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </div>
+                  <div class="header-cell sortable" @click="sortBy('ime_kreirao')">
+                    Author
+                    <span class="sort-indicator" v-if="sortField === 'ime_kreirao'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </div>
+                  <div class="header-cell sortable" @click="sortBy('tip_dokumenta')">
+                    Type
+                    <span class="sort-indicator" v-if="sortField === 'tip_dokumenta'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </div>
+                  <div class="header-cell sortable" @click="sortBy('poslednja_izmena')">
+                    Modified
+                    <span class="sort-indicator" v-if="sortField === 'poslednja_izmena'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </div>
+                  <div class="header-cell sortable" @click="sortBy('naziv_projekta')">
+                    Project
+                    <span class="sort-indicator" v-if="sortField === 'naziv_projekta'">
+                      {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </div>
+                  <div class="header-cell">Actions</div>
+                </div>
+
+                <div class="table-body">
+                  <div 
+                    v-for="doc in paginatedDocuments" 
+                    :key="doc.dokument_id"
+                    class="table-row"
+                    :class="{ selected: selectedDocuments.includes(doc.dokument_id) }"
+                  >
+                    <div class="cell">
+                      <input 
+                        type="checkbox" 
+                        :checked="selectedDocuments.includes(doc.dokument_id)"
+                        @change="toggleDocumentSelection(doc.dokument_id)"
+                      >
+                    </div>
+                    <div class="cell document-name">
+                      <span class="file-icon">📄</span>
+                      {{ doc.naziv_dokumenta }}
+                    </div>
+                    <div class="cell">{{ doc.ime_kreirao }}</div>
+                    <div class="cell">
+                      <span class="type-badge" :class="`type-${doc.tip_dokumenta?.toLowerCase() || 'document'}`">
+                        {{ doc.tip_dokumenta || 'Document' }}
+                      </span>
+                    </div>
+                    <div class="cell">{{ formatDate(doc.poslednja_izmena || doc.datuma_postavke) }}</div>
+                    <div class="cell">{{ doc.naziv_projekta || 'N/A' }}</div>
+                    <div class="cell actions">
+                      <button 
+                        v-if="doc.permissions?.canRead"
+                        class="action-btn view-btn" 
+                        @click="previewDocument(doc)"
+                        title="Preview"
+                      >
+                        View
+                      </button>
+                      <button 
+                        v-if="doc.permissions?.canWrite"
+                        class="action-btn edit-btn" 
+                        @click="editDocument(doc)"
+                        title="Edit"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        v-if="doc.permissions?.canDelete"
+                        class="action-btn delete-btn" 
+                        @click="deleteDocument(doc.dokument_id)"
+                        title="Delete"
+                      >
+                        Delete
+                      </button>
+                      <span v-if="!doc.permissions?.canRead && !doc.permissions?.canWrite && !doc.permissions?.canDelete" class="no-access-text">
+                        No Access
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
             <!-- End of documents table v-else -->
 
-            <!-- Pagination -->
-            <div class="pagination" v-if="totalPages > 1">
+            <!-- Pagination (only for regular table view) -->
+            <div class="pagination" v-if="!showFolderPreview && totalPages > 1">
               <button 
                 class="page-btn" 
                 :disabled="currentPage === 1"
@@ -303,6 +409,7 @@ function goToAddDocument() {
 
 // Reactive data
 const documents = ref([])
+const allTags = ref([])
 const loading = ref(true)
 const error = ref('')
 
@@ -314,12 +421,14 @@ const selectedProject = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
 const selectedTags = ref([])
+const tagSearchQuery = ref('')
 const showFolderPreview = ref(false)
+const expandedProjects = ref([]) // Track which project folders are expanded
 const selectedFolder = ref('')
 
 // Table and pagination states
 const selectedDocuments = ref([])
-const sortField = ref('modified')
+const sortField = ref('poslednja_izmena')
 const sortDirection = ref('desc')
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
@@ -329,39 +438,81 @@ const showUploadModal = ref(false)
 const showPreviewModal = ref(false)
 
 // Computed properties
+const filteredTags = computed(() => {
+  if (!tagSearchQuery.value) return allTags.value
+  const query = tagSearchQuery.value.toLowerCase()
+  return allTags.value.filter(tag => 
+    tag.naziv_taga.toLowerCase().includes(query)
+  )
+})
+
+const availableTypes = computed(() => {
+  const types = new Set()
+  documents.value.forEach(doc => {
+    if (doc.tip_dokumenta) types.add(doc.tip_dokumenta)
+  })
+  return Array.from(types).sort()
+})
+
+const availableProjects = computed(() => {
+  const projects = new Set()
+  documents.value.forEach(doc => {
+    if (doc.naziv_projekta) projects.add(doc.naziv_projekta)
+  })
+  return Array.from(projects).sort()
+})
+
 const filteredDocuments = computed(() => {
   let filtered = documents.value
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     filtered = filtered.filter(doc =>
-      doc.name.toLowerCase().includes(query) ||
-      doc.author.toLowerCase().includes(query) ||
-      doc.description.toLowerCase().includes(query)
+      doc.naziv_dokumenta.toLowerCase().includes(query) ||
+      doc.ime_kreirao.toLowerCase().includes(query) ||
+      (doc.opis && doc.opis.toLowerCase().includes(query))
     )
   }
 
   if (authorFilter.value) {
     const author = authorFilter.value.toLowerCase()
     filtered = filtered.filter(doc =>
-      doc.author.toLowerCase().includes(author)
+      doc.ime_kreirao.toLowerCase().includes(author)
     )
   }
 
   if (selectedType.value) {
-    filtered = filtered.filter(doc => doc.type === selectedType.value)
+    filtered = filtered.filter(doc => doc.tip_dokumenta === selectedType.value)
   }
 
   if (selectedProject.value) {
-    filtered = filtered.filter(doc => doc.project === selectedProject.value)
+    filtered = filtered.filter(doc => doc.naziv_projekta === selectedProject.value)
   }
 
   if (dateFrom.value) {
-    filtered = filtered.filter(doc => doc.modified >= dateFrom.value)
+    const fromDate = new Date(dateFrom.value)
+    filtered = filtered.filter(doc => {
+      const docDate = new Date(doc.poslednja_izmena || doc.datuma_postavke)
+      return docDate >= fromDate
+    })
   }
 
   if (dateTo.value) {
-    filtered = filtered.filter(doc => doc.modified <= dateTo.value)
+    const toDate = new Date(dateTo.value)
+    filtered = filtered.filter(doc => {
+      const docDate = new Date(doc.poslednja_izmena || doc.datuma_postavke)
+      return docDate <= toDate
+    })
+  }
+
+  // Tag filtering - filter documents that have ANY of the selected tags
+  if (selectedTags.value.length > 0) {
+    filtered = filtered.filter(doc => {
+      // If document has tags loaded and at least one matches selected tags
+      return doc.tagovi && doc.tagovi.some(tag => 
+        selectedTags.value.includes(tag.naziv_taga)
+      )
+    })
   }
 
   return filtered
@@ -372,8 +523,18 @@ const sortedDocuments = computed(() => {
   
   if (sortField.value) {
     docs.sort((a, b) => {
-      const aVal = a[sortField.value]
-      const bVal = b[sortField.value]
+      let aVal = a[sortField.value]
+      let bVal = b[sortField.value]
+      
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) aVal = ''
+      if (bVal === null || bVal === undefined) bVal = ''
+      
+      // Handle date fields
+      if (sortField.value === 'poslednja_izmena' || sortField.value === 'datuma_postavke') {
+        aVal = new Date(aVal || 0).getTime()
+        bVal = new Date(bVal || 0).getTime()
+      }
       
       if (sortDirection.value === 'asc') {
         return aVal < bVal ? -1 : aVal > bVal ? 1 : 0
@@ -384,6 +545,21 @@ const sortedDocuments = computed(() => {
   }
   
   return docs
+})
+
+const groupedDocuments = computed(() => {
+  if (!showFolderPreview.value) return {}
+  
+  const groups = {}
+  sortedDocuments.value.forEach(doc => {
+    const projectName = doc.naziv_projekta || 'Unassigned'
+    if (!groups[projectName]) {
+      groups[projectName] = []
+    }
+    groups[projectName].push(doc)
+  })
+  
+  return groups
 })
 
 const paginatedDocuments = computed(() => {
@@ -398,7 +574,7 @@ const totalPages = computed(() => {
 
 const allSelected = computed(() => {
   return paginatedDocuments.value.length > 0 && 
-         paginatedDocuments.value.every(doc => selectedDocuments.value.includes(doc.id))
+         paginatedDocuments.value.every(doc => selectedDocuments.value.includes(doc.dokument_id))
 })
 
 // Methods
@@ -451,23 +627,97 @@ function toggleDocumentSelection(docId) {
   }
 }
 
+function toggleSelectAllInGroup(docs) {
+  const allGroupSelected = docs.every(doc => selectedDocuments.value.includes(doc.dokument_id))
+  
+  if (allGroupSelected) {
+    // Remove all docs from this group
+    selectedDocuments.value = selectedDocuments.value.filter(id => 
+      !docs.some(doc => doc.dokument_id === id)
+    )
+  } else {
+    // Add all docs from this group
+    const newSelections = docs.map(doc => doc.dokument_id)
+    selectedDocuments.value = [...new Set([...selectedDocuments.value, ...newSelections])]
+  }
+}
+
+function toggleProjectFolder(projectName) {
+  const index = expandedProjects.value.indexOf(projectName)
+  if (index > -1) {
+    expandedProjects.value.splice(index, 1)
+  } else {
+    expandedProjects.value.push(projectName)
+  }
+}
+
 function previewDocument(doc) {
+  // Check if user has read permission
+  if (!doc.permissions?.canRead) {
+    alert('You do not have permission to view this document.')
+    return
+  }
+  
+  // Log view activity
+  try {
+    const { LogActivity } = window.go.main.App
+    LogActivity({
+      tip_aktivnosti: 'VIEW',
+      entitet_tip: 'DOKUMENT',
+      entitet_id: doc.dokument_id,
+      naziv_entiteta: doc.naziv_dokumenta,
+      opis: `Viewed document: ${doc.naziv_dokumenta}`,
+      rezultat: 'SUCCESS'
+    }).catch(err => console.error('Failed to log view activity:', err))
+  } catch (err) {
+    console.error('Failed to log view activity:', err)
+  }
+  
   // Navigate to document preview page with document ID
-  router.push(`/documents/preview/${doc.id}`)
+  router.push(`/documents/preview/${doc.dokument_id}`)
 }
 
 function editDocument(doc) {
+  // Check if user has write permission
+  if (!doc.permissions?.canWrite) {
+    alert('You do not have permission to edit this document.')
+    return
+  }
   // Navigate to document add/edit page with document ID as query parameter
   router.push({
     path: '/documents/add',
-    query: { id: doc.id }
+    query: { id: doc.dokument_id }
   })
 }
 
 async function deleteDocument(docId) {
+  // Find the document to check permissions
+  const doc = documents.value.find(d => d.dokument_id === docId)
+  
+  if (!doc || !doc.permissions?.canDelete) {
+    alert('You do not have permission to delete this document.')
+    return
+  }
+  
   if (confirm('Are you sure you want to delete this document?')) {
     try {
       await DocumentService.deleteDocument(docId)
+      
+      // Log delete activity
+      try {
+        const { LogActivity } = window.go.main.App
+        await LogActivity({
+          tip_aktivnosti: 'DELETE',
+          entitet_tip: 'DOKUMENT',
+          entitet_id: docId,
+          naziv_entiteta: doc.naziv_dokumenta,
+          opis: `Deleted document: ${doc.naziv_dokumenta}`,
+          rezultat: 'SUCCESS'
+        })
+      } catch (logErr) {
+        console.error('Failed to log delete activity:', logErr)
+      }
+      
       // Refresh the document list
       await loadDocuments()
     } catch (err) {
@@ -481,8 +731,62 @@ async function loadDocuments() {
   try {
     loading.value = true
     error.value = ''
-    const docs = await DocumentService.getAllDocuments()
-    documents.value = docs
+    
+    const { GetAllDocuments, GetAllTags, GetDocumentTags, CheckUserPermission } = window.go.main.App
+    
+    // Load documents and tags in parallel
+    const [docs, tags] = await Promise.all([
+      GetAllDocuments(),
+      GetAllTags()
+    ])
+    
+    // Load tags and permissions for each document
+    if (docs && docs.length > 0) {
+      const docsWithTagsAndPermissions = await Promise.all(
+        docs.map(async (doc) => {
+          try {
+            // Load tags for this document
+            const docTags = await GetDocumentTags(doc.dokument_id)
+            
+            // Load permissions for current user on this document
+            const [canRead, canWrite, canDelete] = await Promise.all([
+              CheckUserPermission(doc.dokument_id, 'read').catch(() => false),
+              CheckUserPermission(doc.dokument_id, 'write').catch(() => false),
+              CheckUserPermission(doc.dokument_id, 'delete').catch(() => false)
+            ])
+            
+            return { 
+              ...doc, 
+              tagovi: docTags || [],
+              permissions: {
+                canRead,
+                canWrite,
+                canDelete
+              }
+            }
+          } catch (err) {
+            console.error(`Error loading data for document ${doc.dokument_id}:`, err)
+            return { 
+              ...doc, 
+              tagovi: [],
+              permissions: {
+                canRead: false,
+                canWrite: false,
+                canDelete: false
+              }
+            }
+          }
+        })
+      )
+      documents.value = docsWithTagsAndPermissions
+    } else {
+      documents.value = []
+    }
+    
+    allTags.value = tags || []
+    
+    console.log('Loaded documents with tags and permissions:', documents.value)
+    console.log('Loaded tags:', allTags.value)
   } catch (err) {
     error.value = err.message
     console.error('Loading error:', err)
@@ -500,3 +804,118 @@ onMounted(() => {
   loadDocuments()
 })
 </script>
+
+<style scoped>
+/* Override global styles for folder preview */
+.documents-table {
+  overflow: visible !important;
+}
+
+.project-folder {
+  margin-bottom: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: visible;
+  background: white;
+  width: 100%;
+  max-width: none;
+}
+
+.folder-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+  width: 100%;
+}
+
+.folder-header:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+}
+
+.folder-header.expanded {
+  border-bottom: 1px solid #dee2e6;
+}
+
+.folder-icon {
+  font-size: 1.2em;
+  margin-right: 10px;
+}
+
+.folder-name {
+  font-size: 1em;
+  font-weight: 600;
+  flex: 1;
+}
+
+.folder-count {
+  opacity: 0.9;
+  font-size: 0.9em;
+  margin-right: 15px;
+}
+
+.expand-arrow {
+  font-size: 0.8em;
+}
+
+.folder-contents {
+  background: #ffffff;
+  width: 100%;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.folder-contents .table-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.folder-contents .table-body {
+  max-height: none !important;
+  overflow: visible !important;
+  flex: none !important;
+}
+
+.document-item {
+  border-left: 2px solid #e0e0e0;
+}
+
+.document-item:hover {
+  background: #f8f9fa;
+  border-left-color: #667eea;
+}
+
+.empty-tags {
+  color: #999;
+  font-style: italic;
+  padding: 10px;
+  text-align: center;
+}
+
+.view-toggles {
+  display: flex;
+  align-items: center;
+}
+
+.view-toggles label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.view-toggles input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+.no-access-text {
+  color: #999;
+  font-size: 0.85em;
+  font-style: italic;
+  padding: 4px 8px;
+}
+</style>

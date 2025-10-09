@@ -1,5 +1,77 @@
 export namespace models {
 	
+	export class ActivityLogRequest {
+	    tip_aktivnosti: string;
+	    entitet_tip?: string;
+	    entitet_id?: number;
+	    naziv_entiteta?: string;
+	    opis?: string;
+	    rezultat?: string;
+	    dodatne_informacije?: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActivityLogRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tip_aktivnosti = source["tip_aktivnosti"];
+	        this.entitet_tip = source["entitet_tip"];
+	        this.entitet_id = source["entitet_id"];
+	        this.naziv_entiteta = source["naziv_entiteta"];
+	        this.opis = source["opis"];
+	        this.rezultat = source["rezultat"];
+	        this.dodatne_informacije = source["dodatne_informacije"];
+	    }
+	}
+	export class DocumentPermissionRequest {
+	    dokument_id: number;
+	    korisnik_id: number;
+	    moze_citati: boolean;
+	    moze_menjati: boolean;
+	    moze_brisati: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DocumentPermissionRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dokument_id = source["dokument_id"];
+	        this.korisnik_id = source["korisnik_id"];
+	        this.moze_citati = source["moze_citati"];
+	        this.moze_menjati = source["moze_menjati"];
+	        this.moze_brisati = source["moze_brisati"];
+	    }
+	}
+	export class DocumentPermissionResponse {
+	    dozvola_id: number;
+	    dokument_id: number;
+	    korisnik_id: number;
+	    korisnicko_ime: string;
+	    ime: string;
+	    prezime: string;
+	    moze_citati: boolean;
+	    moze_menjati: boolean;
+	    moze_brisati: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DocumentPermissionResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dozvola_id = source["dozvola_id"];
+	        this.dokument_id = source["dokument_id"];
+	        this.korisnik_id = source["korisnik_id"];
+	        this.korisnicko_ime = source["korisnicko_ime"];
+	        this.ime = source["ime"];
+	        this.prezime = source["prezime"];
+	        this.moze_citati = source["moze_citati"];
+	        this.moze_menjati = source["moze_menjati"];
+	        this.moze_brisati = source["moze_brisati"];
+	    }
+	}
 	export class Dokumenti {
 	    dokument_id: number;
 	    projekat_id?: number;
@@ -8,6 +80,7 @@ export namespace models {
 	    opis?: string;
 	    tip_dokumenta?: string;
 	    jezik_dokumenta?: string;
+	    kljucne_reci?: string;
 	    radni_tok_id?: number;
 	    trenutna_faza_id?: number;
 	    kreirao_korisnik_id: number;
@@ -33,6 +106,7 @@ export namespace models {
 	        this.opis = source["opis"];
 	        this.tip_dokumenta = source["tip_dokumenta"];
 	        this.jezik_dokumenta = source["jezik_dokumenta"];
+	        this.kljucne_reci = source["kljucne_reci"];
 	        this.radni_tok_id = source["radni_tok_id"];
 	        this.trenutna_faza_id = source["trenutna_faza_id"];
 	        this.kreirao_korisnik_id = source["kreirao_korisnik_id"];
@@ -124,6 +198,80 @@ export namespace models {
 	        this.broj_clanova = source["broj_clanova"];
 	    }
 	}
+	export class SkornjeAktivnosti {
+	    log_id: number;
+	    korisnik_id?: number;
+	    korisnik_ime: string;
+	    tip_aktivnosti: string;
+	    entitet_tip?: string;
+	    entitet_id?: number;
+	    naziv_entiteta?: string;
+	    opis?: string;
+	    rezultat: string;
+	    kreiran_datuma: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkornjeAktivnosti(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.log_id = source["log_id"];
+	        this.korisnik_id = source["korisnik_id"];
+	        this.korisnik_ime = source["korisnik_ime"];
+	        this.tip_aktivnosti = source["tip_aktivnosti"];
+	        this.entitet_tip = source["entitet_tip"];
+	        this.entitet_id = source["entitet_id"];
+	        this.naziv_entiteta = source["naziv_entiteta"];
+	        this.opis = source["opis"];
+	        this.rezultat = source["rezultat"];
+	        this.kreiran_datuma = source["kreiran_datuma"];
+	    }
+	}
+	export class StatistikaAktivnosti {
+	    tip_aktivnosti: string;
+	    broj_aktivnosti: number;
+	    broj_korisnika: number;
+	    danas: number;
+	    ove_nedelje: number;
+	    ovog_meseca: number;
+	    poslednja_aktivnost: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StatistikaAktivnosti(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tip_aktivnosti = source["tip_aktivnosti"];
+	        this.broj_aktivnosti = source["broj_aktivnosti"];
+	        this.broj_korisnika = source["broj_korisnika"];
+	        this.danas = source["danas"];
+	        this.ove_nedelje = source["ove_nedelje"];
+	        this.ovog_meseca = source["ovog_meseca"];
+	        this.poslednja_aktivnost = source["poslednja_aktivnost"];
+	    }
+	}
+	export class StatistikaDokumenata {
+	    ukupno_dokumenata: number;
+	    novih_dokumenata_mesecno: number;
+	    broj_autora: number;
+	    broj_projekata_sa_dokumentima: number;
+	    prosecno_verzija_po_dokumentu: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new StatistikaDokumenata(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ukupno_dokumenata = source["ukupno_dokumenata"];
+	        this.novih_dokumenata_mesecno = source["novih_dokumenata_mesecno"];
+	        this.broj_autora = source["broj_autora"];
+	        this.broj_projekata_sa_dokumentima = source["broj_projekata_sa_dokumentima"];
+	        this.prosecno_verzija_po_dokumentu = source["prosecno_verzija_po_dokumentu"];
+	    }
+	}
 	export class Tagovi {
 	    tag_id: number;
 	    naziv_taga: string;
@@ -146,6 +294,7 @@ export namespace models {
 	    tip_dokumenta: string;
 	    jezik_dokumenta: string;
 	    tagovi: string[];
+	    kljucne_reci: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UploadDocumentRequest(source);
@@ -160,6 +309,7 @@ export namespace models {
 	        this.tip_dokumenta = source["tip_dokumenta"];
 	        this.jezik_dokumenta = source["jezik_dokumenta"];
 	        this.tagovi = source["tagovi"];
+	        this.kljucne_reci = source["kljucne_reci"];
 	    }
 	}
 	export class VerzijeDokumenata {

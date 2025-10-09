@@ -8,6 +8,7 @@ import Projects from './views/Projects.vue'
 import DocumentManagement from './views/documents/DocumentManagement.vue'
 import DocumentAdd from './views/documents/DocumentAdd.vue'
 import DocumentPreview from './views/documents/DocumentPreview.vue'
+import DocumentAnalytics from './views/documents/DocumentAnalytics.vue'
 import Tasks from './views/Tasks.vue'
 import Users from './views/Users.vue'
 
@@ -52,6 +53,12 @@ const routes = [
     component: DocumentPreview,
     meta: { requiresAuth: true },
     props: true
+  },
+  {
+    path: '/documents/analytics',
+    name: 'DocumentAnalytics',
+    component: DocumentAnalytics,
+    meta: { requiresAuth: true }
   },
   {
     path: '/tasks',

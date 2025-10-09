@@ -26,13 +26,15 @@ var assets embed.FS
 
 // App struct
 type App struct {
-	ctx             context.Context
-	db              *sql.DB
-	authService     *services.AuthService
-	documentService *services.DocumentService
-	userRepo        *repositories.UserRepository
-	projectRepo     *repositories.ProjectRepository
-	currentUser     *models.User
+	ctx              context.Context
+	db               *sql.DB
+	authService      *services.AuthService
+	documentService  *services.DocumentService
+	llmService       *services.LLMService
+	analyticsService *services.AnalyticsService
+	userRepo         *repositories.UserRepository
+	projectRepo      *repositories.ProjectRepository
+	currentUser      *models.User
 }
 
 // NewApp creates a new App application struct
@@ -179,6 +181,17 @@ func (a *App) initializeDatabase() {
 	// Initialize services
 	a.authService = services.NewAuthService(a.userRepo)
 	a.documentService = services.NewDocumentService(db)
+	a.llmService = services.NewLLMService()
+	a.analyticsService = services.NewAnalyticsService(db)
+
+	// Check if OpenAI API key is configured
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	if apiKey != "" {
+		log.Printf("✅ OpenAI API key configured")
+		a.llmService.SetAPIKey(apiKey)
+	} else {
+		log.Printf("⚠️  OpenAI API key not found. Set OPENAI_API_KEY environment variable to use LLM features.")
+	}
 }
 
 // Login authenticates a user
@@ -347,6 +360,19 @@ func (a *App) GetAllDocuments() ([]models.Dokumenti, error) {
 	return a.documentService.GetAllDocuments()
 }
 
+// GetAllTags returns all available tags from the database
+func (a *App) GetAllTags() ([]models.Tag, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetAllTags()
+}
+
 // GetDocumentByID returns a specific document by ID
 func (a *App) GetDocumentByID(documentID int) (models.Dokumenti, error) {
 	if a.currentUser == nil {
@@ -387,13 +413,13 @@ func (a *App) GetDocumentTags(documentID int) ([]models.Tagovi, error) {
 }
 
 // UploadDocument uploads a new document
-func (a *App) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string) error {
+func (a *App) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string) (int, error) {
 	if a.currentUser == nil {
-		return errors.New("niste prijavljeni")
+		return 0, errors.New("niste prijavljeni")
 	}
 
 	if a.documentService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
 	}
 
 	return a.documentService.UploadDocument(req, fileData, fileName, a.currentUser.KorisnikID)
@@ -423,6 +449,319 @@ func (a *App) DeleteDocument(documentID int) error {
 	}
 
 	return a.documentService.DeleteDocument(documentID)
+}
+
+// ============================================================================
+// Document Permissions Management
+// ============================================================================
+
+// GetDocumentPermissions returns all permissions for a document
+func (a *App) GetDocumentPermissions(documentID int) ([]models.DocumentPermissionResponse, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetDocumentPermissions(documentID)
+}
+
+// SetDocumentPermission sets or updates permission for a user on a document
+func (a *App) SetDocumentPermission(req models.DocumentPermissionRequest) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.SetDocumentPermission(req)
+}
+
+// RemoveDocumentPermission removes a user's permission from a document
+func (a *App) RemoveDocumentPermission(documentID int, userID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.RemoveDocumentPermission(documentID, userID)
+}
+
+// CheckUserPermission checks if current user has specific permission on a document
+func (a *App) CheckUserPermission(documentID int, permissionType string) (bool, error) {
+	if a.currentUser == nil {
+		return false, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return false, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, permissionType)
+}
+
+// ============================================================================
+// Analytics and Activity Log Operations
+// ============================================================================
+
+// LogActivity logs a user activity
+func (a *App) LogActivity(req models.ActivityLogRequest) error {
+	if a.analyticsService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	var korisnikID *int
+	if a.currentUser != nil {
+		korisnikID = &a.currentUser.KorisnikID
+	}
+
+	return a.analyticsService.LogActivity(korisnikID, req)
+}
+
+// GetRecentActivity retrieves recent activities
+func (a *App) GetRecentActivity(limit int) ([]models.SkornjeAktivnosti, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetRecentActivity(limit)
+}
+
+// GetDocumentStatistics retrieves document statistics
+func (a *App) GetDocumentStatistics() (*models.StatistikaDokumenata, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetDocumentStatistics()
+}
+
+// GetActivityStatistics retrieves activity statistics
+func (a *App) GetActivityStatistics() ([]models.StatistikaAktivnosti, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetActivityStatistics()
+}
+
+// GetDocumentsByType returns document count grouped by type
+func (a *App) GetDocumentsByType() (map[string]int, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetDocumentsByType()
+}
+
+// GetDocumentTrends returns document creation trends over time
+func (a *App) GetDocumentTrends(days int) ([]map[string]interface{}, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetDocumentTrends(days)
+}
+
+// GetTopContributors returns users with most document uploads
+func (a *App) GetTopContributors(limit int) ([]map[string]interface{}, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetTopContributors(limit)
+}
+
+// ============================================================================
+// LLM Operations
+// ============================================================================
+
+// SetOpenAIKey sets the OpenAI API key for LLM operations
+func (a *App) SetOpenAIKey(apiKey string) error {
+	if a.llmService == nil {
+		return errors.New("LLM servis nije inicijalizovan")
+	}
+
+	a.llmService.SetAPIKey(apiKey)
+
+	// Optionally save to environment or config file
+	os.Setenv("OPENAI_API_KEY", apiKey)
+
+	return nil
+}
+
+// GenerateDocumentSummary generates an AI summary of a document
+func (a *App) GenerateDocumentSummary(documentID int, maxLength int) (string, error) {
+	if a.currentUser == nil {
+		return "", errors.New("niste prijavljeni")
+	}
+
+	if a.llmService == nil {
+		return "", errors.New("LLM servis nije inicijalizovan")
+	}
+
+	if a.documentService == nil {
+		return "", errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get document content
+	document, err := a.documentService.GetDocumentByID(documentID)
+	if err != nil {
+		return "", fmt.Errorf("greška pri učitavanju dokumenta: %w", err)
+	}
+
+	// For now, use document description and name as content
+	// In a real implementation, you'd extract text from the actual file
+	documentText := fmt.Sprintf("Document: %s\nDescription: %s",
+		document.NazivDokumenta,
+		func() string {
+			if document.Opis != nil {
+				return *document.Opis
+			}
+			return "No description"
+		}())
+
+	// Generate summary
+	summary, err := a.llmService.GenerateSummary(documentText, maxLength)
+	if err != nil {
+		return "", fmt.Errorf("greška pri generisanju sažetka: %w", err)
+	}
+
+	// Save summary to database
+	err = a.documentService.SaveLLMSummary(documentID, summary)
+	if err != nil {
+		log.Printf("Upozorenje: Nije moguće sačuvati sažetak u bazu: %v", err)
+		// Continue anyway and return the summary
+	}
+
+	return summary, nil
+}
+
+// GenerateDocumentTags generates AI tags for a document
+func (a *App) GenerateDocumentTags(documentID int, maxTags int) ([]string, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.llmService == nil {
+		return nil, errors.New("LLM servis nije inicijalizovan")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get document content
+	document, err := a.documentService.GetDocumentByID(documentID)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri učitavanju dokumenta: %w", err)
+	}
+
+	// For now, use document description and name as content
+	documentText := fmt.Sprintf("Document: %s\nDescription: %s",
+		document.NazivDokumenta,
+		func() string {
+			if document.Opis != nil {
+				return *document.Opis
+			}
+			return "No description"
+		}())
+
+	// Generate tags
+	tags, err := a.llmService.GenerateTags(documentText, maxTags)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri generisanju tagova: %w", err)
+	}
+
+	return tags, nil
+}
+
+// GenerateTagsFromText generates AI tags from document text (before upload)
+func (a *App) GenerateTagsFromText(documentName string, description string, documentType string, maxTags int) ([]string, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.llmService == nil {
+		return nil, errors.New("LLM servis nije inicijalizovan")
+	}
+
+	// Build document text from provided information
+	documentText := fmt.Sprintf("Document Name: %s\nDocument Type: %s\nDescription: %s",
+		documentName, documentType, description)
+
+	// Generate tags
+	tags, err := a.llmService.GenerateTags(documentText, maxTags)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri generisanju tagova: %w", err)
+	}
+
+	return tags, nil
+}
+
+// GenerateDescriptionFromText generates AI description from document name and type (before upload)
+func (a *App) GenerateDescriptionFromText(documentName string, documentType string, fileName string) (string, error) {
+	if a.currentUser == nil {
+		return "", errors.New("niste prijavljeni")
+	}
+
+	if a.llmService == nil {
+		return "", errors.New("LLM servis nije inicijalizovan")
+	}
+
+	// Generate description using the specialized function
+	description, err := a.llmService.GenerateDescription(documentName, documentType, fileName)
+	if err != nil {
+		return "", fmt.Errorf("greška pri generisanju opisa: %w", err)
+	}
+
+	return description, nil
+}
+
+// AskDocumentQuestion asks a question about a document using AI
+func (a *App) AskDocumentQuestion(documentID int, question string) (string, error) {
+	if a.currentUser == nil {
+		return "", errors.New("niste prijavljeni")
+	}
+
+	if a.llmService == nil {
+		return "", errors.New("LLM servis nije inicijalizovan")
+	}
+
+	if a.documentService == nil {
+		return "", errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get document content
+	document, err := a.documentService.GetDocumentByID(documentID)
+	if err != nil {
+		return "", fmt.Errorf("greška pri učitavanju dokumenta: %w", err)
+	}
+
+	// For now, use document description and name as content
+	documentText := fmt.Sprintf("Document: %s\nDescription: %s",
+		document.NazivDokumenta,
+		func() string {
+			if document.Opis != nil {
+				return *document.Opis
+			}
+			return "No description"
+		}())
+
+	// Ask question
+	answer, err := a.llmService.AnswerQuestion(documentText, question)
+	if err != nil {
+		return "", fmt.Errorf("greška pri postavljanju pitanja: %w", err)
+	}
+
+	return answer, nil
 }
 
 func main() {
