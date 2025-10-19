@@ -3,25 +3,29 @@
 import {models} from '../models';
 import {services} from '../models';
 
-export function AddDocumentPhaseHistory(arg1:models.IstorijaFazaDokumenta):Promise<number>;
+export function AddProjectMember(arg1:number,arg2:number):Promise<void>;
 
-export function AddDocumentVersion(arg1:models.VerzijeDokumenata):Promise<number>;
+export function AddTaskComment(arg1:number,arg2:string):Promise<void>;
+
+export function ApprovePhaseChangeRequest(arg1:number):Promise<void>;
 
 export function AskDocumentQuestion(arg1:number,arg2:string):Promise<string>;
 
 export function CheckUserPermission(arg1:number,arg2:string):Promise<boolean>;
 
+export function CloneWorkflow(arg1:number,arg2:string):Promise<number>;
+
 export function CompleteFirstTimeSetup(arg1:string,arg2:string):Promise<Record<string, any>>;
+
+export function CompleteProject(arg1:number):Promise<void>;
+
+export function CreateNewProject(arg1:models.CreateProjectRequest):Promise<void>;
 
 export function CreatePhase(arg1:models.Faze):Promise<void>;
 
-export function CreatePhaseChangeRequest(arg1:models.ZahteviPromeneFaze):Promise<number>;
-
 export function CreateProject(arg1:models.Projekti):Promise<void>;
 
-export function CreateRole(arg1:string):Promise<number>;
-
-export function CreateTag(arg1:string):Promise<number>;
+export function CreateTask(arg1:models.CreateTaskRequest):Promise<void>;
 
 export function CreateUser(arg1:models.Korisnici,arg2:string):Promise<void>;
 
@@ -29,17 +33,11 @@ export function CreateWorkflow(arg1:models.RadniTokovi):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
-export function DeleteDocumentPhaseHistory(arg1:number):Promise<void>;
-
-export function DeleteDocumentVersion(arg1:number,arg2:number):Promise<void>;
-
 export function DeletePhase(arg1:number):Promise<void>;
 
-export function DeletePhaseChangeRequest(arg1:number):Promise<void>;
+export function DeleteProject(arg1:number):Promise<void>;
 
-export function DeleteRole(arg1:number):Promise<void>;
-
-export function DeleteTag(arg1:number):Promise<void>;
+export function DeleteTask(arg1:number):Promise<void>;
 
 export function DeleteWorkflow(arg1:number):Promise<void>;
 
@@ -55,11 +53,17 @@ export function GetActivityStatistics():Promise<Array<models.StatistikaAktivnost
 
 export function GetAllDocuments():Promise<Array<models.Dokumenti>>;
 
+export function GetAllOverdueTasks():Promise<Array<models.Zadaci>>;
+
+export function GetAllProjects():Promise<Array<models.Projekti>>;
+
 export function GetAllTags():Promise<Array<models.Tagovi>>;
 
 export function GetAllUsers():Promise<Array<models.Korisnici>>;
 
 export function GetAllWorkflows():Promise<Array<models.RadniTokovi>>;
+
+export function GetAvailableTeamMembers():Promise<Array<models.Korisnici>>;
 
 export function GetCurrentUser():Promise<models.Korisnici>;
 
@@ -67,27 +71,47 @@ export function GetDocumentByID(arg1:number):Promise<models.Dokumenti>;
 
 export function GetDocumentPermissions(arg1:number):Promise<Array<models.DocumentPermissionResponse>>;
 
-export function GetDocumentPhaseHistory(arg1:number):Promise<Array<models.IstorijaFazaDokumenta>>;
-
-export function GetDocumentPhases(arg1:number):Promise<Array<models.Faze>>;
-
 export function GetDocumentStatistics():Promise<models.StatistikaDokumenata>;
 
 export function GetDocumentTags(arg1:number):Promise<Array<models.Tagovi>>;
 
 export function GetDocumentTrends(arg1:number):Promise<Array<Record<string, any>>>;
 
-export function GetDocumentUsers(arg1:number):Promise<Array<models.Korisnici>>;
-
 export function GetDocumentVersions(arg1:number):Promise<Array<models.VerzijeDokumenata>>;
 
 export function GetDocumentsByType():Promise<Record<string, number>>;
 
-export function GetProjectDocuments(arg1:number):Promise<Array<models.Dokumenti>>;
+export function GetOverdueTasksForProject(arg1:number):Promise<Array<models.Zadaci>>;
+
+export function GetPhaseChangeRequestsForProject(arg1:number):Promise<Array<models.ZahteviPromeneFaze>>;
+
+export function GetPhaseChangeRequestsForTask(arg1:number):Promise<Array<models.ZahteviPromeneFaze>>;
+
+export function GetProjectAnalytics(arg1:number):Promise<Record<string, any>>;
+
+export function GetProjectByID(arg1:number):Promise<models.Projekti>;
 
 export function GetProjectMembers(arg1:number):Promise<Array<models.Korisnici>>;
 
+export function GetProjectResources(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function GetProjectsByCurrentUser():Promise<Array<models.Projekti>>;
+
+export function GetProjectsByStatus(arg1:string):Promise<Array<models.Projekti>>;
+
 export function GetRecentActivity(arg1:number):Promise<Array<models.SkornjeAktivnosti>>;
+
+export function GetTaskByID(arg1:number):Promise<models.Zadaci>;
+
+export function GetTaskComments(arg1:number):Promise<Array<models.KomentariZadataka>>;
+
+export function GetTasksByCurrentUser():Promise<Array<models.Zadaci>>;
+
+export function GetTasksByPhase(arg1:number):Promise<Array<models.Zadaci>>;
+
+export function GetTasksByProject(arg1:number):Promise<Array<models.Zadaci>>;
+
+export function GetTasksByUser(arg1:number):Promise<Array<models.Zadaci>>;
 
 export function GetTopContributors(arg1:number):Promise<Array<Record<string, any>>>;
 
@@ -97,9 +121,7 @@ export function GetWorkflowByID(arg1:number):Promise<models.RadniTokovi>;
 
 export function GetWorkflowPhases(arg1:number):Promise<Array<models.Faze>>;
 
-export function ListPhaseChangeRequests(arg1:number):Promise<Array<models.ZahteviPromeneFaze>>;
-
-export function ListRoles():Promise<Array<models.Uloge>>;
+export function GetWorkflowTemplates():Promise<Array<models.RadniTokovi>>;
 
 export function LogActivity(arg1:models.ActivityLogRequest):Promise<void>;
 
@@ -107,7 +129,15 @@ export function Login(arg1:string,arg2:string):Promise<services.LoginResponse>;
 
 export function Logout():Promise<void>;
 
+export function MoveTaskToPhase(arg1:number,arg2:number):Promise<void>;
+
+export function RejectPhaseChangeRequest(arg1:number):Promise<void>;
+
 export function RemoveDocumentPermission(arg1:number,arg2:number):Promise<void>;
+
+export function RemoveProjectMember(arg1:number,arg2:number):Promise<void>;
+
+export function RequestPhaseChange(arg1:number,arg2:number,arg3:string):Promise<void>;
 
 export function SetDocumentPermission(arg1:models.DocumentPermissionRequest):Promise<void>;
 
@@ -117,16 +147,14 @@ export function TestConnection():Promise<Record<string, any>>;
 
 export function UpdateDocument(arg1:number,arg2:models.UploadDocumentRequest):Promise<void>;
 
-export function UpdatePhase(arg1:models.Faze):Promise<void>;
+export function UpdatePhase(arg1:number,arg2:models.Faze):Promise<void>;
 
-export function UpdatePhaseChangeRequestStatus(arg1:number,arg2:string,arg3:any):Promise<void>;
+export function UpdateProject(arg1:number,arg2:models.Projekti):Promise<void>;
 
-export function UpdateProject(arg1:models.Projekti):Promise<void>;
+export function UpdateTask(arg1:number,arg2:models.UpdateTaskRequest):Promise<void>;
 
-export function UpdateRole(arg1:number,arg2:string):Promise<void>;
+export function UpdateTaskProgress(arg1:number,arg2:number):Promise<void>;
 
-export function UpdateTag(arg1:number,arg2:string):Promise<void>;
-
-export function UpdateWorkflow(arg1:models.RadniTokovi):Promise<void>;
+export function UpdateWorkflow(arg1:number,arg2:models.RadniTokovi):Promise<void>;
 
 export function UploadDocument(arg1:models.UploadDocumentRequest,arg2:Array<number>,arg3:string):Promise<number>;

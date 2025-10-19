@@ -30,14 +30,11 @@ type App struct {
 	db               *sql.DB
 	authService      *services.AuthService
 	documentService  *services.DocumentService
-	workflowService  *services.WorkflowService
-	roleService      *services.RoleService
-	tagService       *services.TagService
-	phaseReqService  *services.PhaseChangeRequestService
-	docPhaseHistSvc  *services.DocumentPhaseHistoryService
-	docVersionSvc    *services.DocumentVersionService
 	llmService       *services.LLMService
 	analyticsService *services.AnalyticsService
+	projectService   *services.ProjectService
+	taskService      *services.TaskService
+	workflowService  *services.WorkflowService
 	userRepo         *repositories.UserRepository
 	projectRepo      *repositories.ProjectRepository
 	currentUser      *models.User
@@ -76,7 +73,7 @@ func (a *App) testDatabaseConnections() {
 		password string
 		dbname   string
 	}{
-		{"Default", "localhost:5432", "postgres", "postgres", "research_institute_db"},
+		{"Default", "localhost:5432", "postgres", "password", "research_institute"},
 		{"Alternative Password", "localhost:5432", "postgres", "postgres", "research_institute"},
 		{"Different Port", "localhost:5433", "postgres", "password", "research_institute"},
 		{"System DB", "localhost:5432", "postgres", "password", "postgres"},
@@ -144,8 +141,8 @@ func (a *App) initializeDatabase() {
 	dbHost := getEnvOrDefault("DB_HOST", "localhost")
 	dbPort := getEnvOrDefault("DB_PORT", "5432")
 	dbUser := getEnvOrDefault("DB_USER", "postgres")
-	dbPassword := getEnvOrDefault("DB_PASSWORD", "postgres")
-	dbName := getEnvOrDefault("DB_NAME", "research_institute_db")
+	dbPassword := getEnvOrDefault("DB_PASSWORD", "123")
+	dbName := getEnvOrDefault("DB_NAME", "research_institute")
 
 	log.Printf("Pokušavam konekciju na bazu:")
 	log.Printf("  Host: %s", dbHost)
@@ -187,14 +184,11 @@ func (a *App) initializeDatabase() {
 	// Initialize services
 	a.authService = services.NewAuthService(a.userRepo)
 	a.documentService = services.NewDocumentService(db)
-	a.workflowService = services.NewWorkflowService(db)
-	a.roleService = services.NewRoleService(db)
-	a.tagService = services.NewTagService(db)
-	a.phaseReqService = services.NewPhaseChangeRequestService(db)
-	a.docPhaseHistSvc = services.NewDocumentPhaseHistoryService(db)
-	a.docVersionSvc = services.NewDocumentVersionService(db)
 	a.llmService = services.NewLLMService()
 	a.analyticsService = services.NewAnalyticsService(db)
+	a.projectService = services.NewProjectService(db)
+	a.taskService = services.NewTaskService(db)
+	a.workflowService = services.NewWorkflowService(db)
 
 	// Check if OpenAI API key is configured
 	apiKey := os.Getenv("OPENAI_API_KEY")
@@ -204,305 +198,6 @@ func (a *App) initializeDatabase() {
 	} else {
 		log.Printf("⚠️  OpenAI API key not found. Set OPENAI_API_KEY environment variable to use LLM features.")
 	}
-}
-
-// ============================================================================
-// Workflow CRUD
-// ============================================================================
-
-func (a *App) GetAllWorkflows() ([]models.RadniTokovi, error) {
-	if a.workflowService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.GetAllWorkflows()
-}
-
-func (a *App) GetWorkflowByID(id int) (*models.RadniTokovi, error) {
-	if a.workflowService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.GetWorkflowByID(id)
-}
-
-func (a *App) GetWorkflowPhases(workflowID int) ([]models.Faze, error) {
-	if a.workflowService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.GetWorkflowPhases(workflowID)
-}
-
-func (a *App) CreateWorkflow(wf models.RadniTokovi) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.CreateWorkflow(wf)
-}
-
-func (a *App) UpdateWorkflow(wf models.RadniTokovi) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.UpdateWorkflow(wf)
-}
-
-func (a *App) DeleteWorkflow(id int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.DeleteWorkflow(id)
-}
-
-func (a *App) CreatePhase(phase models.Faze) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.CreatePhase(phase)
-}
-
-func (a *App) UpdatePhase(phase models.Faze) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.UpdatePhase(phase)
-}
-
-func (a *App) DeletePhase(phaseID int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.workflowService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.workflowService.DeletePhase(phaseID)
-}
-
-// ============================================================================
-// Roles CRUD (Admin only)
-// ============================================================================
-
-func (a *App) ListRoles() ([]models.Uloge, error) {
-	if a.roleService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.roleService.GetAll()
-}
-
-func (a *App) CreateRole(name string) (int, error) {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return 0, errors.New("nemate dozvolu")
-	}
-	if a.roleService == nil {
-		return 0, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	role := models.Uloge{NazivUloge: name}
-	if err := a.roleService.Create(&role); err != nil {
-		return 0, err
-	}
-	return role.UlogaID, nil
-}
-
-func (a *App) UpdateRole(id int, name string) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.roleService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.roleService.Update(models.Uloge{UlogaID: id, NazivUloge: name})
-}
-
-func (a *App) DeleteRole(id int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.roleService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.roleService.Delete(id)
-}
-
-// ============================================================================
-// Tags CRUD (Admin for mutations)
-// ============================================================================
-
-func (a *App) CreateTag(name string) (int, error) {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return 0, errors.New("nemate dozvolu")
-	}
-	if a.tagService == nil {
-		return 0, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	tag := models.Tagovi{NazivTaga: name}
-	if err := a.tagService.Create(&tag); err != nil {
-		return 0, err
-	}
-	return tag.TagID, nil
-}
-
-func (a *App) UpdateTag(id int, name string) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.tagService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.tagService.Update(models.Tagovi{TagID: id, NazivTaga: name})
-}
-
-func (a *App) DeleteTag(id int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.tagService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.tagService.Delete(id)
-}
-
-// ============================================================================
-// Phase Change Requests
-// ============================================================================
-
-func (a *App) ListPhaseChangeRequests(taskID int) ([]models.ZahteviPromeneFaze, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.phaseReqService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.phaseReqService.ListByTask(taskID)
-}
-
-func (a *App) CreatePhaseChangeRequest(req models.ZahteviPromeneFaze) (int, error) {
-	if a.currentUser == nil {
-		return 0, errors.New("niste prijavljeni")
-	}
-	if a.phaseReqService == nil {
-		return 0, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	req.PodnosilacZahtevaID = a.currentUser.KorisnikID
-	if err := a.phaseReqService.Create(&req); err != nil {
-		return 0, err
-	}
-	return req.ZahtevID, nil
-}
-
-func (a *App) UpdatePhaseChangeRequestStatus(id int, status string, komentar *string) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.phaseReqService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.phaseReqService.UpdateStatus(id, status, komentar)
-}
-
-func (a *App) DeletePhaseChangeRequest(id int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.phaseReqService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.phaseReqService.Delete(id)
-}
-
-// ============================================================================
-// Document Phase History
-// ============================================================================
-
-func (a *App) GetDocumentPhaseHistory(documentID int) ([]models.IstorijaFazaDokumenta, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.docPhaseHistSvc == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.docPhaseHistSvc.ListByDocument(documentID)
-}
-
-func (a *App) AddDocumentPhaseHistory(entry models.IstorijaFazaDokumenta) (int, error) {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return 0, errors.New("nemate dozvolu")
-	}
-	if a.docPhaseHistSvc == nil {
-		return 0, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	if entry.KorisnikID == 0 {
-		entry.KorisnikID = a.currentUser.KorisnikID
-	}
-	if err := a.docPhaseHistSvc.Create(&entry); err != nil {
-		return 0, err
-	}
-	return entry.IstorijaID, nil
-}
-
-func (a *App) DeleteDocumentPhaseHistory(id int) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
-		return errors.New("nemate dozvolu")
-	}
-	if a.docPhaseHistSvc == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.docPhaseHistSvc.Delete(id)
-}
-
-// ============================================================================
-// Document Versions (permission-aware)
-// ============================================================================
-
-func (a *App) AddDocumentVersion(v models.VerzijeDokumenata) (int, error) {
-	if a.currentUser == nil {
-		return 0, errors.New("niste prijavljeni")
-	}
-	if a.docVersionSvc == nil || a.documentService == nil {
-		return 0, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	// Check permission to write to this document
-	ok, err := a.documentService.CheckUserPermission(v.DokumentID, a.currentUser.KorisnikID, "write")
-	if err != nil {
-		return 0, err
-	}
-	if !ok {
-		return 0, errors.New("nemate dozvolu za izmene dokumenta")
-	}
-	v.PostavioKorisnikID = a.currentUser.KorisnikID
-	if err := a.docVersionSvc.Create(&v); err != nil {
-		return 0, err
-	}
-	return v.VerzijaID, nil
-}
-
-func (a *App) DeleteDocumentVersion(versionID int, documentID int) error {
-	if a.currentUser == nil {
-		return errors.New("niste prijavljeni")
-	}
-	if a.docVersionSvc == nil || a.documentService == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "delete")
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return errors.New("nemate dozvolu za brisanje")
-	}
-	return a.docVersionSvc.Delete(versionID)
 }
 
 // Login authenticates a user
@@ -627,6 +322,38 @@ func (a *App) GetAllUsers() ([]models.User, error) {
 	return a.userRepo.GetAll()
 }
 
+// GetAvailableTeamMembers returns all researchers that can be team members
+func (a *App) GetAvailableTeamMembers() ([]models.User, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	// Only Project Managers and Administrators can view potential team members
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return nil, errors.New("nemate dozvolu za pregled članova tima")
+	}
+
+	if a.userRepo == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get all users and filter for researchers only
+	allUsers, err := a.userRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter for researchers only
+	var researchers []models.User
+	for _, user := range allUsers {
+		if user.NazivUloge == "Istrazivac" {
+			researchers = append(researchers, user)
+		}
+	}
+
+	return researchers, nil
+}
+
 // GetUserProjects returns projects for the current user
 func (a *App) GetUserProjects() ([]models.Project, error) {
 	if a.currentUser == nil {
@@ -654,39 +381,6 @@ func (a *App) CreateProject(project *models.Project) error {
 	project.Status = "Aktivan"
 
 	return a.projectRepo.Create(project)
-}
-
-// GetProjectMembers returns users assigned to a given project
-func (a *App) GetProjectMembers(projectID int) ([]models.User, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.projectRepo == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.projectRepo.GetMembers(projectID)
-}
-
-// UpdateProject updates project basic information (leader or admin only)
-func (a *App) UpdateProject(project *models.Project) error {
-	if a.currentUser == nil {
-		return errors.New("niste prijavljeni")
-	}
-	if a.projectRepo == nil {
-		return errors.New("sistem nije povezan sa bazom podataka")
-	}
-	// Only admin or current leader can update
-	if a.currentUser.NazivUloge != "Administrator" {
-		// fetch existing to verify leader
-		existing, err := a.projectRepo.GetByID(project.ProjekatID)
-		if err != nil {
-			return err
-		}
-		if existing.RukovodilaID == nil || *existing.RukovodilaID != a.currentUser.KorisnikID {
-			return errors.New("nemate dozvolu za izmenu projekta")
-		}
-	}
-	return a.projectRepo.Update(project)
 }
 
 // Document Management Methods
@@ -728,48 +422,6 @@ func (a *App) GetDocumentByID(documentID int) (models.Dokumenti, error) {
 	}
 
 	return a.documentService.GetDocumentByID(documentID)
-}
-
-// GetDocumentPhases returns all phases for the document's workflow, marks current phase
-func (a *App) GetDocumentPhases(documentID int) ([]models.Faze, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.documentService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	doc, err := a.documentService.GetDocumentByID(documentID)
-	if err != nil {
-		return nil, err
-	}
-	if doc.RadniTokID == nil {
-		return nil, errors.New("dokument nema radni tok")
-	}
-	return a.workflowService.GetWorkflowPhases(*doc.RadniTokID)
-}
-
-// GetDocumentUsers returns all users with permissions on the document
-func (a *App) GetDocumentUsers(documentID int) ([]models.User, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.documentService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	perms, err := a.documentService.GetDocumentPermissions(documentID)
-	if err != nil {
-		return nil, err
-	}
-	var users []models.User
-	for _, p := range perms {
-		users = append(users, models.User{
-			KorisnikID: p.KorisnikID,
-			KorisnickoIme: p.KorisnickoIme,
-			Ime: &p.Ime,
-			Prezime: &p.Prezime,
-		})
-	}
-	return users, nil
 }
 
 // GetDocumentVersions returns all versions of a document
@@ -835,17 +487,6 @@ func (a *App) DeleteDocument(documentID int) error {
 	}
 
 	return a.documentService.DeleteDocument(documentID)
-}
-
-// GetProjectDocuments returns all documents attached to a specific project
-func (a *App) GetProjectDocuments(projectID int) ([]models.Dokumenti, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.documentService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	return a.documentService.GetDocumentsByProject(projectID)
 }
 
 // ============================================================================
@@ -1159,6 +800,759 @@ func (a *App) AskDocumentQuestion(documentID int, question string) (string, erro
 	}
 
 	return answer, nil
+}
+
+// ============================================================================
+// Project Realization Subsystem - Project Management
+// ============================================================================
+
+// GetAllProjects returns all projects in the system
+func (a *App) GetAllProjects() ([]models.Projekti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetAllProjects()
+}
+
+// GetProjectByID returns a specific project by ID
+func (a *App) GetProjectByID(projectID int) (models.Projekti, error) {
+	if a.currentUser == nil {
+		return models.Projekti{}, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return models.Projekti{}, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectByID(projectID)
+}
+
+// CreateNewProject creates a new project with workflow and team members
+func (a *App) CreateNewProject(req models.CreateProjectRequest) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za kreiranje projekata")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Create project with current user as project manager
+	return a.projectService.CreateProjectWithManager(req, a.currentUser.KorisnikID)
+}
+
+// UpdateProject updates an existing project
+func (a *App) UpdateProject(projectID int, project models.Projekti) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	existingProject, err := a.projectService.GetProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if existingProject.RukovodilaID != nil && *existingProject.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može ažurirati projekat")
+	}
+
+	return a.projectService.UpdateProject(projectID, project)
+}
+
+// DeleteProject deletes a project
+func (a *App) DeleteProject(projectID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	existingProject, err := a.projectService.GetProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if existingProject.RukovodilaID != nil && *existingProject.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može obrisati projekat")
+	}
+
+	return a.projectService.DeleteProject(projectID)
+}
+
+// GetProjectMembers returns all team members of a project
+func (a *App) GetProjectMembers(projectID int) ([]models.Korisnici, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectMembers(projectID)
+}
+
+// AddProjectMember adds a user to a project team
+func (a *App) AddProjectMember(projectID, userID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	existingProject, err := a.projectService.GetProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if existingProject.RukovodilaID != nil && *existingProject.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može dodavati članove")
+	}
+
+	return a.projectService.AddProjectMember(projectID, userID)
+}
+
+// RemoveProjectMember removes a user from a project team
+func (a *App) RemoveProjectMember(projectID, userID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	existingProject, err := a.projectService.GetProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if existingProject.RukovodilaID != nil && *existingProject.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može ukloniti članove")
+	}
+
+	return a.projectService.RemoveProjectMember(projectID, userID)
+}
+
+// GetProjectsByStatus returns projects filtered by status
+func (a *App) GetProjectsByStatus(status string) ([]models.Projekti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectsByStatus(status)
+}
+
+// CompleteProject marks a project as completed
+func (a *App) CompleteProject(projectID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	existingProject, err := a.projectService.GetProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if existingProject.RukovodilaID != nil && *existingProject.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može završiti projekat")
+	}
+
+	return a.projectService.CompleteProject(projectID)
+}
+
+// GetProjectResources returns resources allocated to a project
+func (a *App) GetProjectResources(projectID int) ([]map[string]interface{}, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectResources(projectID)
+}
+
+// GetProjectAnalytics returns comprehensive analytics for a project
+func (a *App) GetProjectAnalytics(projectID int) (map[string]interface{}, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectAnalytics(projectID)
+}
+
+// GetProjectsByCurrentUser returns all projects where current user is member or manager
+func (a *App) GetProjectsByCurrentUser() ([]models.Projekti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.projectService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.projectService.GetProjectsByUser(a.currentUser.KorisnikID)
+}
+
+// ============================================================================
+// Project Realization Subsystem - Task Management
+// ============================================================================
+
+// GetTasksByProject returns all tasks for a specific project
+func (a *App) GetTasksByProject(projectID int) ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTasksByProject(projectID)
+}
+
+// GetTasksByUser returns all tasks assigned to a specific user
+func (a *App) GetTasksByUser(userID int) ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTasksByUser(userID)
+}
+
+// GetTasksByCurrentUser returns all tasks assigned to the current user
+func (a *App) GetTasksByCurrentUser() ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTasksByUser(a.currentUser.KorisnikID)
+}
+
+// GetTaskByID returns a specific task by ID
+func (a *App) GetTaskByID(taskID int) (models.Zadaci, error) {
+	if a.currentUser == nil {
+		return models.Zadaci{}, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return models.Zadaci{}, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTaskByID(taskID)
+}
+
+// CreateTask creates a new task
+func (a *App) CreateTask(req models.CreateTaskRequest) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user is project manager
+	if a.projectService != nil {
+		project, err := a.projectService.GetProjectByID(req.ProjekatID)
+		if err != nil {
+			return err
+		}
+
+		if project.RukovodilaID != nil && *project.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+			return errors.New("samo rukovodilac projekta može kreirati zadatke")
+		}
+	}
+
+	return a.taskService.CreateTask(req)
+}
+
+// UpdateTask updates an existing task
+func (a *App) UpdateTask(taskID int, req models.UpdateTaskRequest) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to check project
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return err
+	}
+
+	// Check if user is project manager
+	if a.projectService != nil {
+		project, err := a.projectService.GetProjectByID(task.ProjekatID)
+		if err != nil {
+			return err
+		}
+
+		if project.RukovodilaID != nil && *project.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+			// Allow task owner to update their own task
+			if task.DodjeljenKorisnikuID == nil || *task.DodjeljenKorisnikuID != a.currentUser.KorisnikID {
+				return errors.New("nemate dozvolu za izmenu ovog zadatka")
+			}
+		}
+	}
+
+	return a.taskService.UpdateTask(taskID, req)
+}
+
+// DeleteTask deletes a task
+func (a *App) DeleteTask(taskID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to check project
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return err
+	}
+
+	// Check if user is project manager
+	if a.projectService != nil {
+		project, err := a.projectService.GetProjectByID(task.ProjekatID)
+		if err != nil {
+			return err
+		}
+
+		if project.RukovodilaID != nil && *project.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+			return errors.New("samo rukovodilac projekta može obrisati zadatke")
+		}
+	}
+
+	return a.taskService.DeleteTask(taskID)
+}
+
+// GetTaskComments returns all comments for a task
+func (a *App) GetTaskComments(taskID int) ([]models.KomentariZadataka, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTaskComments(taskID)
+}
+
+// AddTaskComment adds a comment to a task
+func (a *App) AddTaskComment(taskID int, comment string) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.AddTaskComment(taskID, a.currentUser.KorisnikID, comment)
+}
+
+// MoveTaskToPhase moves a task to a different phase
+func (a *App) MoveTaskToPhase(taskID, newPhaseID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to check project
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return err
+	}
+
+	// Check if user is project manager
+	if a.projectService != nil {
+		project, err := a.projectService.GetProjectByID(task.ProjekatID)
+		if err != nil {
+			return err
+		}
+
+		if project.RukovodilaID != nil && *project.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+			return errors.New("samo rukovodilac projekta može menjati fazu zadatka")
+		}
+	}
+
+	return a.taskService.MoveTaskToPhase(taskID, newPhaseID)
+}
+
+// GetTasksByPhase returns all tasks in a specific phase
+func (a *App) GetTasksByPhase(phaseID int) ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetTasksByPhase(phaseID)
+}
+
+// RequestPhaseChange creates a phase change request
+func (a *App) RequestPhaseChange(taskID, requestedPhaseID int, comment string) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.RequestPhaseChange(taskID, a.currentUser.KorisnikID, requestedPhaseID, comment)
+}
+
+// GetPhaseChangeRequestsForProject returns all phase change requests for a project
+func (a *App) GetPhaseChangeRequestsForProject(projectID int) ([]models.ZahteviPromeneFaze, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetPhaseChangeRequests(&projectID, nil)
+}
+
+// GetPhaseChangeRequestsForTask returns all phase change requests for a task
+func (a *App) GetPhaseChangeRequestsForTask(taskID int) ([]models.ZahteviPromeneFaze, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetPhaseChangeRequests(nil, &taskID)
+}
+
+// ApprovePhaseChangeRequest approves a phase change request
+func (a *App) ApprovePhaseChangeRequest(requestID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Only managers can approve
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može odobriti zahtev")
+	}
+
+	return a.taskService.ApprovePhaseChangeRequest(requestID)
+}
+
+// RejectPhaseChangeRequest rejects a phase change request
+func (a *App) RejectPhaseChangeRequest(requestID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Only managers can reject
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo rukovodilac projekta može odbiti zahtev")
+	}
+
+	return a.taskService.RejectPhaseChangeRequest(requestID)
+}
+
+// GetOverdueTasksForProject returns overdue tasks for a project
+func (a *App) GetOverdueTasksForProject(projectID int) ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetOverdueTasks(&projectID)
+}
+
+// GetAllOverdueTasks returns all overdue tasks
+func (a *App) GetAllOverdueTasks() ([]models.Zadaci, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.taskService.GetOverdueTasks(nil)
+}
+
+// UpdateTaskProgress updates task progress
+func (a *App) UpdateTaskProgress(taskID, progress int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to check if user is assigned
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return err
+	}
+
+	// Check if user is assigned to task or is manager
+	if task.DodjeljenKorisnikuID != nil && *task.DodjeljenKorisnikuID != a.currentUser.KorisnikID {
+		if a.projectService != nil {
+			project, err := a.projectService.GetProjectByID(task.ProjekatID)
+			if err != nil {
+				return err
+			}
+
+			if project.RukovodilaID != nil && *project.RukovodilaID != a.currentUser.KorisnikID && a.currentUser.NazivUloge != "Administrator" {
+				return errors.New("nemate dozvolu za ažuriranje progresa ovog zadatka")
+			}
+		}
+	}
+
+	return a.taskService.UpdateTaskProgress(taskID, progress)
+}
+
+// ============================================================================
+// Project Realization Subsystem - Workflow Management
+// ============================================================================
+
+// GetAllWorkflows returns all workflows
+func (a *App) GetAllWorkflows() ([]models.RadniTokovi, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.workflowService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.GetAllWorkflows()
+}
+
+// GetWorkflowByID returns a specific workflow by ID
+func (a *App) GetWorkflowByID(workflowID int) (*models.RadniTokovi, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.workflowService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.GetWorkflowByID(workflowID)
+}
+
+// GetWorkflowPhases returns all phases of a workflow
+func (a *App) GetWorkflowPhases(workflowID int) ([]models.Faze, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.workflowService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.GetWorkflowPhases(workflowID)
+}
+
+// CreateWorkflow creates a new workflow
+func (a *App) CreateWorkflow(workflow models.RadniTokovi) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za kreiranje radnih tokova")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.CreateWorkflow(workflow)
+}
+
+// UpdateWorkflow updates an existing workflow
+func (a *App) UpdateWorkflow(workflowID int, workflow models.RadniTokovi) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za izmenu radnih tokova")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.UpdateWorkflow(workflowID, workflow)
+}
+
+// DeleteWorkflow deletes a workflow
+func (a *App) DeleteWorkflow(workflowID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("samo administrator može brisati radne tokove")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.DeleteWorkflow(workflowID)
+}
+
+// CreatePhase creates a new phase in a workflow
+func (a *App) CreatePhase(phase models.Faze) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za kreiranje faza")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.CreatePhase(phase)
+}
+
+// UpdatePhase updates an existing phase
+func (a *App) UpdatePhase(phaseID int, phase models.Faze) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za izmenu faza")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.UpdatePhase(phaseID, phase)
+}
+
+// DeletePhase deletes a phase
+func (a *App) DeletePhase(phaseID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za brisanje faza")
+	}
+
+	if a.workflowService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.DeletePhase(phaseID)
+}
+
+// GetWorkflowTemplates returns all workflow templates
+func (a *App) GetWorkflowTemplates() ([]models.RadniTokovi, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.workflowService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.GetWorkflowTemplates()
+}
+
+// CloneWorkflow creates a copy of an existing workflow
+func (a *App) CloneWorkflow(sourceWorkflowID int, newName string) (int, error) {
+	if a.currentUser == nil {
+		return 0, errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return 0, errors.New("nemate dozvolu za kloniranje radnih tokova")
+	}
+
+	if a.workflowService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.workflowService.CloneWorkflow(sourceWorkflowID, newName)
 }
 
 func main() {

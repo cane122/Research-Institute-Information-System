@@ -24,6 +24,89 @@ export namespace models {
 	        this.dodatne_informacije = source["dodatne_informacije"];
 	    }
 	}
+	export class CreateProjectRequest {
+	    naziv_projekta: string;
+	    opis: string;
+	    // Go type: time
+	    datum_pocetka?: any;
+	    // Go type: time
+	    datum_zavrsetka?: any;
+	    radni_tok_id?: number;
+	    clanovi_tima: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateProjectRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.naziv_projekta = source["naziv_projekta"];
+	        this.opis = source["opis"];
+	        this.datum_pocetka = this.convertValues(source["datum_pocetka"], null);
+	        this.datum_zavrsetka = this.convertValues(source["datum_zavrsetka"], null);
+	        this.radni_tok_id = source["radni_tok_id"];
+	        this.clanovi_tima = source["clanovi_tima"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CreateTaskRequest {
+	    projekat_id: number;
+	    naziv_zadatka: string;
+	    opis: string;
+	    dodeljen_korisniku_id?: number;
+	    // Go type: time
+	    rok?: any;
+	    prioritet: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateTaskRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.projekat_id = source["projekat_id"];
+	        this.naziv_zadatka = source["naziv_zadatka"];
+	        this.opis = source["opis"];
+	        this.dodeljen_korisniku_id = source["dodeljen_korisniku_id"];
+	        this.rok = this.convertValues(source["rok"], null);
+	        this.prioritet = source["prioritet"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class DocumentPermissionRequest {
 	    dokument_id: number;
 	    korisnik_id: number;
@@ -154,27 +237,27 @@ export namespace models {
 	        this.redosled = source["redosled"];
 	    }
 	}
-	export class IstorijaFazaDokumenta {
-	    istorija_id: number;
-	    dokument_id: number;
-	    prethodna_faza_id?: number;
-	    nova_faza_id: number;
+	export class KomentariZadataka {
+	    komentar_id: number;
+	    zadatak_id: number;
 	    korisnik_id: number;
+	    tekst_komentara: string;
 	    // Go type: time
-	    datum_promene: any;
+	    datuma_kreiranja: any;
+	    ime_korisnika?: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new IstorijaFazaDokumenta(source);
+	        return new KomentariZadataka(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.istorija_id = source["istorija_id"];
-	        this.dokument_id = source["dokument_id"];
-	        this.prethodna_faza_id = source["prethodna_faza_id"];
-	        this.nova_faza_id = source["nova_faza_id"];
+	        this.komentar_id = source["komentar_id"];
+	        this.zadatak_id = source["zadatak_id"];
 	        this.korisnik_id = source["korisnik_id"];
-	        this.datum_promene = this.convertValues(source["datum_promene"], null);
+	        this.tekst_komentara = source["tekst_komentara"];
+	        this.datuma_kreiranja = this.convertValues(source["datuma_kreiranja"], null);
+	        this.ime_korisnika = source["ime_korisnika"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -365,19 +448,48 @@ export namespace models {
 	        this.naziv_taga = source["naziv_taga"];
 	    }
 	}
-	export class Uloge {
-	    uloga_id: number;
-	    naziv_uloge: string;
+	export class UpdateTaskRequest {
+	    naziv_zadatka?: string;
+	    opis?: string;
+	    dodeljen_korisniku_id?: number;
+	    // Go type: time
+	    rok?: any;
+	    prioritet?: string;
+	    progres?: number;
+	    faza_id?: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new Uloge(source);
+	        return new UpdateTaskRequest(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.uloga_id = source["uloga_id"];
-	        this.naziv_uloge = source["naziv_uloge"];
+	        this.naziv_zadatka = source["naziv_zadatka"];
+	        this.opis = source["opis"];
+	        this.dodeljen_korisniku_id = source["dodeljen_korisniku_id"];
+	        this.rok = this.convertValues(source["rok"], null);
+	        this.prioritet = source["prioritet"];
+	        this.progres = source["progres"];
+	        this.faza_id = source["faza_id"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class UploadDocumentRequest {
 	    naziv_dokumenta: string;
@@ -428,6 +540,62 @@ export namespace models {
 	        this.velicina_fajla_mb = source["velicina_fajla_mb"];
 	        this.postavio_korisnik_id = source["postavio_korisnik_id"];
 	        this.datuma_postavke = this.convertValues(source["datuma_postavke"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Zadaci {
+	    zadatak_id: number;
+	    projekat_id: number;
+	    faza_id: number;
+	    naziv_zadatka: string;
+	    opis?: string;
+	    dodeljen_korisniku_id?: number;
+	    // Go type: time
+	    rok?: any;
+	    prioritet?: string;
+	    progres: number;
+	    // Go type: time
+	    kreiran_datuma: any;
+	    naziv_projekta?: string;
+	    naziv_faze?: string;
+	    dodeljen_korisniku?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Zadaci(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.zadatak_id = source["zadatak_id"];
+	        this.projekat_id = source["projekat_id"];
+	        this.faza_id = source["faza_id"];
+	        this.naziv_zadatka = source["naziv_zadatka"];
+	        this.opis = source["opis"];
+	        this.dodeljen_korisniku_id = source["dodeljen_korisniku_id"];
+	        this.rok = this.convertValues(source["rok"], null);
+	        this.prioritet = source["prioritet"];
+	        this.progres = source["progres"];
+	        this.kreiran_datuma = this.convertValues(source["kreiran_datuma"], null);
+	        this.naziv_projekta = source["naziv_projekta"];
+	        this.naziv_faze = source["naziv_faze"];
+	        this.dodeljen_korisniku = source["dodeljen_korisniku"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

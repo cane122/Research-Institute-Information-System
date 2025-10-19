@@ -172,11 +172,14 @@ function handleLogout() {
 .user-name {
   font-weight: 600;
   font-size: 14px;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .user-role {
   font-size: 12px;
-  color: #bdc3c7;
+  color: #e0e0e0;
+  font-weight: 500;
 }
 
 .logout-btn {

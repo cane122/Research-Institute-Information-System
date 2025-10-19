@@ -272,3 +272,217 @@ func (s *TaskService) AddTaskComment(taskID, userID int, comment string) error {
 	_, err := s.db.Exec(query, taskID, userID, comment)
 	return err
 }
+
+// MoveTaskToPhase moves a task to a different phase (workflow state)
+func (s *TaskService) MoveTaskToPhase(taskID, newPhaseID int) error {
+	query := `UPDATE zadaci SET faza_id = $1 WHERE zadatak_id = $2`
+	_, err := s.db.Exec(query, newPhaseID, taskID)
+	return err
+}
+
+// GetTasksByPhase returns all tasks in a specific phase
+func (s *TaskService) GetTasksByPhase(phaseID int) ([]models.Zadaci, error) {
+	query := `
+		SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
+		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+		       p.naziv_projekta, f.naziv_faze,
+		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
+		FROM zadaci z
+		JOIN projekti p ON z.projekat_id = p.projekat_id
+		JOIN faze f ON z.faza_id = f.faza_id
+		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+		WHERE z.faza_id = $1
+		ORDER BY z.rok ASC NULLS LAST, z.prioritet DESC
+	`
+
+	rows, err := s.db.Query(query, phaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []models.Zadaci
+	for rows.Next() {
+		var task models.Zadaci
+		err := rows.Scan(
+			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
+			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
+			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.NazivFaze, &task.DodjeljenKorisniku,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+// RequestPhaseChange creates a phase change request for a task
+func (s *TaskService) RequestPhaseChange(taskID, userID, requestedPhaseID int, comment string) error {
+	query := `
+		INSERT INTO zahtevipromenefaze (zadatak_id, podnosilac_zahteva_id, zahtevana_faza_id, status, komentar)
+		VALUES ($1, $2, $3, 'na čekanju', $4)
+	`
+
+	_, err := s.db.Exec(query, taskID, userID, requestedPhaseID, comment)
+	return err
+}
+
+// GetPhaseChangeRequests returns all phase change requests for a project or task
+func (s *TaskService) GetPhaseChangeRequests(projectID *int, taskID *int) ([]models.ZahteviPromeneFaze, error) {
+	var query string
+	var args []interface{}
+
+	if taskID != nil {
+		query = `
+			SELECT z.zahtev_id, z.zadatak_id, z.podnosilac_zahteva_id, z.zahtevana_faza_id,
+			       z.status, z.komentar, z.datum_kreiranja
+			FROM zahtevipromenefaze z
+			WHERE z.zadatak_id = $1
+			ORDER BY z.datum_kreiranja DESC
+		`
+		args = append(args, *taskID)
+	} else if projectID != nil {
+		query = `
+			SELECT z.zahtev_id, z.zadatak_id, z.podnosilac_zahteva_id, z.zahtevana_faza_id,
+			       z.status, z.komentar, z.datum_kreiranja
+			FROM zahtevipromenefaze z
+			JOIN zadaci zd ON z.zadatak_id = zd.zadatak_id
+			WHERE zd.projekat_id = $1
+			ORDER BY z.datum_kreiranja DESC
+		`
+		args = append(args, *projectID)
+	} else {
+		return nil, fmt.Errorf("either projectID or taskID must be provided")
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var requests []models.ZahteviPromeneFaze
+	for rows.Next() {
+		var request models.ZahteviPromeneFaze
+		err := rows.Scan(
+			&request.ZahtevID, &request.ZadatakID, &request.PodnosilacZahtevaID,
+			&request.ZahtevanaFazaID, &request.Status, &request.Komentar,
+			&request.DatumKreiranja,
+		)
+		if err != nil {
+			return nil, err
+		}
+		requests = append(requests, request)
+	}
+
+	return requests, nil
+}
+
+// ApprovePhaseChangeRequest approves and executes a phase change request
+func (s *TaskService) ApprovePhaseChangeRequest(requestID int) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Get request details
+	var taskID, newPhaseID int
+	err = tx.QueryRow(`
+		SELECT zadatak_id, zahtevana_faza_id 
+		FROM zahtevipromenefaze 
+		WHERE zahtev_id = $1
+	`, requestID).Scan(&taskID, &newPhaseID)
+	if err != nil {
+		return err
+	}
+
+	// Update task phase
+	_, err = tx.Exec(`UPDATE zadaci SET faza_id = $1 WHERE zadatak_id = $2`, newPhaseID, taskID)
+	if err != nil {
+		return err
+	}
+
+	// Update request status
+	_, err = tx.Exec(`UPDATE zahtevipromenefaze SET status = 'odobren' WHERE zahtev_id = $1`, requestID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// RejectPhaseChangeRequest rejects a phase change request
+func (s *TaskService) RejectPhaseChangeRequest(requestID int) error {
+	query := `UPDATE zahtevipromenefaze SET status = 'odbijen' WHERE zahtev_id = $1`
+	_, err := s.db.Exec(query, requestID)
+	return err
+}
+
+// GetOverdueTasks returns tasks that are past their deadline
+func (s *TaskService) GetOverdueTasks(projectID *int) ([]models.Zadaci, error) {
+	var query string
+	var args []interface{}
+
+	if projectID != nil {
+		query = `
+			SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
+			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+			       p.naziv_projekta, f.naziv_faze,
+			       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
+			FROM zadaci z
+			JOIN projekti p ON z.projekat_id = p.projekat_id
+			JOIN faze f ON z.faza_id = f.faza_id
+			LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+			WHERE z.rok < NOW() AND z.progres < 100 AND z.projekat_id = $1
+			ORDER BY z.rok ASC
+		`
+		args = append(args, *projectID)
+	} else {
+		query = `
+			SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
+			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+			       p.naziv_projekta, f.naziv_faze,
+			       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
+			FROM zadaci z
+			JOIN projekti p ON z.projekat_id = p.projekat_id
+			JOIN faze f ON z.faza_id = f.faza_id
+			LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
+			WHERE z.rok < NOW() AND z.progres < 100
+			ORDER BY z.rok ASC
+		`
+	}
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var tasks []models.Zadaci
+	for rows.Next() {
+		var task models.Zadaci
+		err := rows.Scan(
+			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
+			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
+			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.NazivFaze, &task.DodjeljenKorisniku,
+		)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
+// UpdateTaskProgress updates only the progress of a task
+func (s *TaskService) UpdateTaskProgress(taskID, progress int) error {
+	query := `UPDATE zadaci SET progres = $1 WHERE zadatak_id = $2`
+	_, err := s.db.Exec(query, progress, taskID)
+	return err
+}
