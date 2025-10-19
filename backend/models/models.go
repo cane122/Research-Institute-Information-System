@@ -60,6 +60,7 @@ type Projekti struct {
 	Status         string     `json:"status" db:"status"`
 	RukovodilaID   *int       `json:"rukovodilac_id" db:"rukovodilac_id"`
 	RadniTokID     *int       `json:"radni_tok_id" db:"radni_tok_id"`
+	Resursi        *string    `json:"resursi" db:"resursi"`
 
 	// Joined fields
 	RukovodilaIme string `json:"rukovodilac_ime,omitempty" db:"rukovodilac_ime"`
@@ -267,6 +268,7 @@ type CreateProjectRequest struct {
 	DatumZavrsetka *time.Time `json:"datum_zavrsetka"`
 	RadniTokID     *int       `json:"radni_tok_id"`
 	ClanoviTima    []int      `json:"clanovi_tima"`
+	Resursi        string     `json:"resursi"`
 }
 
 // CreateTaskRequest represents new task creation data

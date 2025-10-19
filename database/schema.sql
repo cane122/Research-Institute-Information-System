@@ -59,6 +59,7 @@ CREATE TABLE Projekti (
     status VARCHAR(50) DEFAULT 'Aktivan', -- e.g., 'Aktivan', 'Završen', 'Otkazan'
     rukovodilac_id INT, -- User who created and manages the project
     radni_tok_id INT, -- Workflow applied to tasks in this project
+    resursi TEXT, -- Resources needed for the project
     FOREIGN KEY (rukovodilac_id) REFERENCES Korisnici(korisnik_id),
     FOREIGN KEY (radni_tok_id) REFERENCES RadniTokovi(radni_tok_id)
 );

@@ -16,18 +16,18 @@ func NewProjectRepository(db *sql.DB) *ProjectRepository {
 
 func (r *ProjectRepository) Create(project *models.Project) error {
 	query := `
-		INSERT INTO projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, status, rukovodilac_id, radni_tok_id)
-		VALUES ($1, $2, $3, $4, COALESCE($5,'Aktivan'), $6, $7)
+		INSERT INTO projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, status, rukovodilac_id, radni_tok_id, resursi)
+		VALUES ($1, $2, $3, $4, COALESCE($5,'Aktivan'), $6, $7, $8)
 		RETURNING projekat_id
 	`
-	return r.db.QueryRow(query, project.NazivProjekta, project.Opis, project.DatumPocetka, project.DatumZavrsetka, project.Status, project.RukovodilaID, project.RadniTokID).Scan(&project.ProjekatID)
+	return r.db.QueryRow(query, project.NazivProjekta, project.Opis, project.DatumPocetka, project.DatumZavrsetka, project.Status, project.RukovodilaID, project.RadniTokID, project.Resursi).Scan(&project.ProjekatID)
 }
 
 func (r *ProjectRepository) GetByID(id int) (*models.Project, error) {
 	query := `
 		SELECT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
 			   p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
-			   COALESCE(k.korisnicko_ime, '') as rukovodilac_ime
+			   COALESCE(p.resursi, ''), COALESCE(k.korisnicko_ime, '') as rukovodilac_ime
 		FROM projekti p
 		LEFT JOIN korisnici k ON p.rukovodilac_id = k.korisnik_id
 		WHERE p.projekat_id = $1
@@ -35,7 +35,7 @@ func (r *ProjectRepository) GetByID(id int) (*models.Project, error) {
 	var pr models.Project
 	err := r.db.QueryRow(query, id).Scan(
 		&pr.ProjekatID, &pr.NazivProjekta, &pr.Opis, &pr.DatumPocetka,
-		&pr.DatumZavrsetka, &pr.Status, &pr.RukovodilaID, &pr.RadniTokID, &pr.RukovodilaIme,
+		&pr.DatumZavrsetka, &pr.Status, &pr.RukovodilaID, &pr.RadniTokID, &pr.Resursi, &pr.RukovodilaIme,
 	)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (r *ProjectRepository) GetByUserID(userID int) ([]models.Project, error) {
 	query := `
 		SELECT DISTINCT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
 			   p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
-			   COALESCE(k.korisnicko_ime, '') as rukovodilac_ime
+			   COALESCE(p.resursi, ''), COALESCE(k.korisnicko_ime, '') as rukovodilac_ime
 		FROM projekti p
 		LEFT JOIN korisnici k ON p.rukovodilac_id = k.korisnik_id
 		LEFT JOIN clanoviprojekta cp ON p.projekat_id = cp.projekat_id
@@ -62,7 +62,7 @@ func (r *ProjectRepository) GetByUserID(userID int) ([]models.Project, error) {
 	var list []models.Project
 	for rows.Next() {
 		var pr models.Project
-		if err := rows.Scan(&pr.ProjekatID, &pr.NazivProjekta, &pr.Opis, &pr.DatumPocetka, &pr.DatumZavrsetka, &pr.Status, &pr.RukovodilaID, &pr.RadniTokID, &pr.RukovodilaIme); err != nil {
+		if err := rows.Scan(&pr.ProjekatID, &pr.NazivProjekta, &pr.Opis, &pr.DatumPocetka, &pr.DatumZavrsetka, &pr.Status, &pr.RukovodilaID, &pr.RadniTokID, &pr.Resursi, &pr.RukovodilaIme); err != nil {
 			return nil, err
 		}
 		list = append(list, pr)
@@ -73,9 +73,9 @@ func (r *ProjectRepository) GetByUserID(userID int) ([]models.Project, error) {
 func (r *ProjectRepository) Update(project *models.Project) error {
 	_, err := r.db.Exec(`
 		UPDATE projekti SET naziv_projekta = $1, opis = $2, datum_pocetka = $3,
-			datum_zavrsetka = $4, status = $5, rukovodilac_id = $6, radni_tok_id = $7
-		WHERE projekat_id = $8
-	`, project.NazivProjekta, project.Opis, project.DatumPocetka, project.DatumZavrsetka, project.Status, project.RukovodilaID, project.RadniTokID, project.ProjekatID)
+			datum_zavrsetka = $4, status = $5, rukovodilac_id = $6, radni_tok_id = $7, resursi = $8
+		WHERE projekat_id = $9
+	`, project.NazivProjekta, project.Opis, project.DatumPocetka, project.DatumZavrsetka, project.Status, project.RukovodilaID, project.RadniTokID, project.Resursi, project.ProjekatID)
 	return err
 }
 

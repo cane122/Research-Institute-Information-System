@@ -19,12 +19,12 @@ INSERT INTO Korisnici (korisnik_id, korisnicko_ime, email, hash_sifre, ime, prez
 (9, 'researcher6', 'researcher6@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Nikola', 'Peric', 3, 'aktivan'),
 (10, 'researcher7', 'researcher7@institut.rs', '$argon2id$v=19$m=65536,t=1,p=4$6qe2HIn5Ekg/JbfLixqCvtSJPc4wBC68CyI6YwVf61M$u3Ms2NZr0QSPv4IQCRAVNrpNFY29/YeMr6CHyWx8+JE', 'Milena', 'Savic', 3, 'aktivan');
 -- 2. KREIRANJE TEST PROJEKATA
-INSERT INTO Projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, status, rukovodilac_id, radni_tok_id) VALUES 
-('AI u Zdravstvu', 'Implementacija vestacke inteligencije u dijagnostici medicinskih slika', '2025-01-15', '2025-12-31', 'Aktivan', 3, 2),
-('Pametni Gradovi IoT', 'Razvoj IoT sistema za upravljanje javnim osvetljenjem i prometom', '2025-02-01', '2026-01-31', 'Aktivan', 4, 1),
-('Kvantno Racunarstvo', 'Istrazivanje primene kvantnih algoritama u kriptografiji', '2024-09-01', '2025-08-31', 'Aktivan', 3, 2),
-('Blockchain Identiteti', 'Decentralizovani sistem za upravljanje digitalnim identitetima', '2025-03-01', '2025-11-30', 'Aktivan', 4, 1),
-('Obnovljiva Energija', 'Optimizacija solarnih panela pomocu machine learning algoritma', '2024-11-01', '2025-10-31', 'Aktivan', 3, 2);
+INSERT INTO Projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, status, rukovodilac_id, radni_tok_id, resursi) VALUES 
+('AI u Zdravstvu', 'Implementacija vestacke inteligencije u dijagnostici medicinskih slika', '2025-01-15', '2025-12-31', 'Aktivan', 3, 2, '5 data scientist-a, 2 GPU servera, medicinski dataset'),
+('Pametni Gradovi IoT', 'Razvoj IoT sistema za upravljanje javnim osvetljenjem i prometom', '2025-02-01', '2026-01-31', 'Aktivan', 4, 1, '10 IoT senzora, cloud server, 3 backend developera'),
+('Kvantno Racunarstvo', 'Istrazivanje primene kvantnih algoritama u kriptografiji', '2024-09-01', '2025-08-31', 'Aktivan', 3, 2, '2 kvantna fizičara, IBM Quantum pristup, laboratorija'),
+('Blockchain Identiteti', 'Decentralizovani sistem za upravljanje digitalnim identitetima', '2025-03-01', '2025-11-30', 'Aktivan', 4, 1, '3 blockchain developera, Ethereum node, smart contract alati'),
+('Obnovljiva Energija', 'Optimizacija solarnih panela pomocu machine learning algoritma', '2024-11-01', '2025-10-31', 'Aktivan', 3, 2, '5 solarnih panela, ML framework, 2 ML inženjera');
 
 -- 3. DODAVANJE CLANOVA PROJEKATA
 INSERT INTO ClanoviProjekta (projekat_id, korisnik_id) VALUES 

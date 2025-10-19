@@ -22,7 +22,7 @@ func NewProjectService(db *sql.DB) *ProjectService {
 func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 	query := `
 		SELECT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
-		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
+		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id, p.resursi,
 		       COALESCE(k.korisnicko_ime, '') as rukovodilac_ime,
 		       COALESCE(task_count.cnt, 0) as broj_zadataka,
 		       COALESCE(member_count.cnt, 0) as broj_clanova
@@ -53,7 +53,7 @@ func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 		err := rows.Scan(
 			&project.ProjekatID, &project.NazivProjekta, &project.Opis,
 			&project.DatumPocetka, &project.DatumZavrsetka, &project.Status,
-			&project.RukovodilaID, &project.RadniTokID, &project.RukovodilaIme,
+			&project.RukovodilaID, &project.RadniTokID, &project.Resursi, &project.RukovodilaIme,
 			&project.BrojZadataka, &project.BrojClanova,
 		)
 		if err != nil {
@@ -69,7 +69,7 @@ func (s *ProjectService) GetProjectByID(projectID int) (models.Projekti, error) 
 	var project models.Projekti
 	query := `
 		SELECT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
-		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
+		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id, p.resursi,
 		       COALESCE(k.korisnicko_ime, '') as rukovodilac_ime
 		FROM projekti p
 		LEFT JOIN korisnici k ON p.rukovodilac_id = k.korisnik_id
@@ -79,7 +79,7 @@ func (s *ProjectService) GetProjectByID(projectID int) (models.Projekti, error) 
 	err := s.db.QueryRow(query, projectID).Scan(
 		&project.ProjekatID, &project.NazivProjekta, &project.Opis,
 		&project.DatumPocetka, &project.DatumZavrsetka, &project.Status,
-		&project.RukovodilaID, &project.RadniTokID, &project.RukovodilaIme,
+		&project.RukovodilaID, &project.RadniTokID, &project.Resursi, &project.RukovodilaIme,
 	)
 
 	return project, err
@@ -99,8 +99,8 @@ func (s *ProjectService) CreateProjectWithManager(req models.CreateProjectReques
 	// Insert project with manager
 	var projectID int
 	query := `
-		INSERT INTO projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, radni_tok_id, rukovodilac_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, 'aktivan')
+		INSERT INTO projekti (naziv_projekta, opis, datum_pocetka, datum_zavrsetka, radni_tok_id, rukovodilac_id, resursi, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 'aktivan')
 		RETURNING projekat_id
 	`
 
@@ -111,7 +111,7 @@ func (s *ProjectService) CreateProjectWithManager(req models.CreateProjectReques
 	}
 
 	err = tx.QueryRow(query, req.NazivProjekta, req.Opis, req.DatumPocetka,
-		req.DatumZavrsetka, req.RadniTokID, managerIDPtr).Scan(&projectID)
+		req.DatumZavrsetka, req.RadniTokID, managerIDPtr, req.Resursi).Scan(&projectID)
 	if err != nil {
 		return err
 	}
@@ -132,13 +132,13 @@ func (s *ProjectService) UpdateProject(projectID int, project models.Projekti) e
 	query := `
 		UPDATE projekti 
 		SET naziv_projekta = $1, opis = $2, datum_pocetka = $3, 
-		    datum_zavrsetka = $4, status = $5, rukovodilac_id = $6, radni_tok_id = $7
-		WHERE projekat_id = $8
+		    datum_zavrsetka = $4, status = $5, rukovodilac_id = $6, radni_tok_id = $7, resursi = $8
+		WHERE projekat_id = $9
 	`
 
 	_, err := s.db.Exec(query, project.NazivProjekta, project.Opis,
 		project.DatumPocetka, project.DatumZavrsetka, project.Status,
-		project.RukovodilaID, project.RadniTokID, projectID)
+		project.RukovodilaID, project.RadniTokID, project.Resursi, projectID)
 
 	return err
 }
@@ -211,7 +211,7 @@ func (s *ProjectService) RemoveProjectMember(projectID, userID int) error {
 func (s *ProjectService) GetProjectsByStatus(status string) ([]models.Projekti, error) {
 	query := `
 		SELECT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
-		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
+		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id, p.resursi,
 		       COALESCE(k.korisnicko_ime, '') as rukovodilac_ime,
 		       COALESCE(task_count.cnt, 0) as broj_zadataka,
 		       COALESCE(member_count.cnt, 0) as broj_clanova
@@ -243,7 +243,7 @@ func (s *ProjectService) GetProjectsByStatus(status string) ([]models.Projekti, 
 		err := rows.Scan(
 			&project.ProjekatID, &project.NazivProjekta, &project.Opis,
 			&project.DatumPocetka, &project.DatumZavrsetka, &project.Status,
-			&project.RukovodilaID, &project.RadniTokID, &project.RukovodilaIme,
+			&project.RukovodilaID, &project.RadniTokID, &project.Resursi, &project.RukovodilaIme,
 			&project.BrojZadataka, &project.BrojClanova,
 		)
 		if err != nil {
@@ -393,7 +393,7 @@ func (s *ProjectService) GetProjectAnalytics(projectID int) (map[string]interfac
 func (s *ProjectService) GetProjectsByUser(userID int) ([]models.Projekti, error) {
 	query := `
 		SELECT DISTINCT p.projekat_id, p.naziv_projekta, p.opis, p.datum_pocetka,
-		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
+		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id, p.resursi,
 		       COALESCE(k.korisnicko_ime, '') as rukovodilac_ime,
 		       COALESCE(task_count.cnt, 0) as broj_zadataka,
 		       COALESCE(member_count.cnt, 0) as broj_clanova
@@ -426,7 +426,7 @@ func (s *ProjectService) GetProjectsByUser(userID int) ([]models.Projekti, error
 		err := rows.Scan(
 			&project.ProjekatID, &project.NazivProjekta, &project.Opis,
 			&project.DatumPocetka, &project.DatumZavrsetka, &project.Status,
-			&project.RukovodilaID, &project.RadniTokID, &project.RukovodilaIme,
+			&project.RukovodilaID, &project.RadniTokID, &project.Resursi, &project.RukovodilaIme,
 			&project.BrojZadataka, &project.BrojClanova,
 		)
 		if err != nil {

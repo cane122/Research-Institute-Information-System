@@ -33,6 +33,7 @@ export namespace models {
 	    datum_zavrsetka?: any;
 	    radni_tok_id?: number;
 	    clanovi_tima: number[];
+	    resursi: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CreateProjectRequest(source);
@@ -46,6 +47,7 @@ export namespace models {
 	        this.datum_zavrsetka = this.convertValues(source["datum_zavrsetka"], null);
 	        this.radni_tok_id = source["radni_tok_id"];
 	        this.clanovi_tima = source["clanovi_tima"];
+	        this.resursi = source["resursi"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -317,6 +319,7 @@ export namespace models {
 	    status: string;
 	    rukovodilac_id?: number;
 	    radni_tok_id?: number;
+	    resursi?: string;
 	    rukovodilac_ime?: string;
 	    broj_zadataka?: number;
 	    broj_clanova?: number;
@@ -335,6 +338,7 @@ export namespace models {
 	        this.status = source["status"];
 	        this.rukovodilac_id = source["rukovodilac_id"];
 	        this.radni_tok_id = source["radni_tok_id"];
+	        this.resursi = source["resursi"];
 	        this.rukovodilac_ime = source["rukovodilac_ime"];
 	        this.broj_zadataka = source["broj_zadataka"];
 	        this.broj_clanova = source["broj_clanova"];

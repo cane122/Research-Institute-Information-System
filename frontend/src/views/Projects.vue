@@ -7,7 +7,11 @@
           <h2>Projekti</h2>
           <div class="breadcrumb">Početna > Projekti</div>
         </div>
-        <button class="btn btn-primary" @click="showCreateModal = true">
+        <button 
+          v-if="isProjectManager" 
+          class="btn btn-primary" 
+          @click="showCreateModal = true"
+        >
           <span class="btn-icon">➕</span>
           Novi projekat
         </button>
@@ -73,7 +77,15 @@
         >
           <div class="project-header">
             <h3>{{ project.name }}</h3>
-            <div class="project-actions">
+            <div class="project-actions" v-if="canManageProject(project)">
+              <button 
+                v-if="project.status !== 'completed'"
+                class="btn-icon-small success" 
+                @click.stop="completeProject(project)"
+                title="Završi projekat"
+              >
+                ✓
+              </button>
               <button 
                 class="btn-icon-small" 
                 @click.stop="editProject(project)"
@@ -158,6 +170,137 @@
         </div>
       </div>
       
+      <!-- View Project Details Modal -->
+      <div v-if="showDetailsModal" class="modal-overlay" @click="closeModals">
+        <div class="modal modal-large" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">Detalji projekta</h3>
+            <button class="modal-close" @click="closeModals">×</button>
+          </div>
+          
+          <div class="form-row-two-cols">
+            <!-- Left Column -->
+            <div class="form-column">
+              <div class="form-group">
+                <label>Naziv projekta</label>
+                <input 
+                  type="text" 
+                  :value="selectedProject?.name || ''" 
+                  readonly
+                  disabled
+                >
+              </div>
+              
+              <div class="form-group">
+                <label>Opis projekta</label>
+                <textarea 
+                  :value="selectedProject?.description || ''" 
+                  rows="4"
+                  readonly
+                  disabled
+                ></textarea>
+              </div>
+              
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Datum početka</label>
+                  <input 
+                    type="date" 
+                    :value="formatDateForInput(selectedProject?.created)" 
+                    readonly
+                    disabled
+                  >
+                </div>
+                
+                <div class="form-group">
+                  <label>Datum završetka</label>
+                  <input 
+                    type="date" 
+                    :value="formatDateForInput(selectedProject?.deadline)" 
+                    readonly
+                    disabled
+                  >
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label>Radni tok</label>
+                <div class="workflow-section">
+                  <div class="workflow-selector">
+                    <select disabled>
+                      <option>{{ getWorkflowName(selectedProject?.workflowId) || 'Nema radnog toka' }}</option>
+                    </select>
+                  </div>
+                  
+                  <div v-if="selectedProject?.phases && selectedProject.phases.length > 0" class="phases-list">
+                    <div class="section-label">Faze projekta:</div>
+                    <div 
+                      v-for="(phase, index) in selectedProject.phases" 
+                      :key="index"
+                      class="phase-item"
+                    >
+                      <span class="phase-name">{{ phase.naziv_faze }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label>Resursi</label>
+                <input 
+                  type="text" 
+                  :value="selectedProject?.resources || ''" 
+                  readonly
+                  disabled
+                >
+              </div>
+            </div>
+            
+            <!-- Right Column -->
+            <div class="form-column">
+              <div class="form-group">
+                <label>Članovi tima</label>
+                <div class="team-section">
+                  <div class="section-label">Članovi tima:</div>
+                  <div v-if="!selectedProject?.team || selectedProject.team.length === 0" class="empty-team">
+                    Nema članova tima
+                  </div>
+                  <div v-else class="selected-team-members">
+                    <div 
+                      v-for="member in selectedProject.team" 
+                      :key="member.id"
+                      class="team-member-item view-only"
+                    >
+                      <div class="user-info">
+                        <div class="user-avatar">{{ member.name.charAt(0) }}</div>
+                        <div>
+                          <div class="user-name">{{ member.name }}</div>
+                          <div class="user-role">{{ member.role }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" @click="closeModals">
+              Zatvori
+            </button>
+            <button 
+              v-if="canManageProject(selectedProject)" 
+              type="button" 
+              class="btn btn-primary" 
+              @click="editProjectFromDetails"
+            >
+              Uredi projekat
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Create/Edit Project Modal -->
       <div v-if="showCreateModal || showEditModal" class="modal-overlay" @click="closeModals">
         <div class="modal modal-large" @click.stop>
@@ -345,10 +488,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
+import { useAuthStore } from '../stores/auth.js'
 
 // Reactive data
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const showDetailsModal = ref(false)
 const selectedProject = ref(null)
 
 const filters = ref({
@@ -396,8 +541,13 @@ const loading = ref(false)
 const error = ref(null)
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // Computed
+const isProjectManager = computed(() => {
+  return authStore.user?.naziv_uloge === 'Rukovodilac projekta' || authStore.user?.naziv_uloge === 'Administrator'
+})
+
 const filteredProjects = computed(() => {
   let filtered = projects.value
 
@@ -440,6 +590,14 @@ const availableUsers = computed(() => {
   return users.value.filter(user => !selectedIds.has(user.id))
 })
 
+// Check if user can manage a project (must be the project manager)
+const canManageProject = (project) => {
+  if (!authStore.user || !project) return false
+  // Check if logged-in user ID matches project's manager ID
+  const currentUserId = authStore.user.korisnik_id || authStore.user.korisnikID
+  return currentUserId === project.leaderId || currentUserId === project.rukovodilac_id
+}
+
 // Methods
 function getStatusText(status) {
   const statusMap = {
@@ -458,18 +616,56 @@ function formatDate(dateString) {
   return d.toLocaleDateString('sr-RS')
 }
 
-function selectProject(project) {
+function formatDateForInput(dateString) {
+  if (!dateString) return ''
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return ''
+  // Format as YYYY-MM-DD for input[type="date"]
+  return d.toISOString().split('T')[0]
+}
+
+function getWorkflowName(workflowId) {
+  if (!workflowId) return ''
+  const workflow = workflows.value.find(w => w.radni_tok_id === workflowId)
+  return workflow ? workflow.naziv : ''
+}
+
+async function selectProject(project) {
   selectedProject.value = project
-  // Navigate to project details or show details modal
-  console.log('Selected project:', project)
+  
+  // Load full project details including phases
+  if (project.workflowId) {
+    try {
+      const phases = await GetWorkflowPhases(project.workflowId)
+      selectedProject.value.phases = phases || []
+    } catch (err) {
+      console.error('Error loading project phases:', err)
+      selectedProject.value.phases = []
+    }
+  }
+  
+  showDetailsModal.value = true
+  console.log('Selected project:', selectedProject.value)
+}
+
+function editProjectFromDetails() {
+  // Close details modal and open edit modal
+  showDetailsModal.value = false
+  editProject(selectedProject.value)
 }
 
 function editProject(project) {
+  // Check permission before allowing edit
+  if (!canManageProject(project)) {
+    alert('Nemate dozvolu za uređivanje ovog projekta. Samo rukovodilac projekta može vršiti izmene.')
+    return
+  }
+  
   selectedProject.value = project
   projectForm.value = {
     name: project.name,
     description: project.description,
-    startDate: project.startDate || '',
+    startDate: project.created || '',
     endDate: project.deadline || '',
     status: project.status,
     workflowId: project.workflowId || '',
@@ -639,6 +835,12 @@ async function createNewWorkflow() {
 }
 
 async function deleteProject(project) {
+  // Check permission before allowing delete
+  if (!canManageProject(project)) {
+    alert('Nemate dozvolu za brisanje ovog projekta. Samo rukovodilac projekta može obrisati projekat.')
+    return
+  }
+  
   if (confirm(`Da li ste sigurni da želite da obrišete projekat "${project.name}"?`)) {
     try {
       loading.value = true
@@ -648,6 +850,40 @@ async function deleteProject(project) {
     } catch (err) {
       console.error('Error deleting project:', err)
       alert('Greška pri brisanju projekta: ' + err.message)
+    } finally {
+      loading.value = false
+    }
+  }
+}
+
+async function completeProject(project) {
+  // Check permission before allowing completion
+  if (!canManageProject(project)) {
+    alert('Nemate dozvolu za završavanje ovog projekta. Samo rukovodilac projekta može završiti projekat.')
+    return
+  }
+  
+  if (project.status === 'completed') {
+    alert('Ovaj projekat je već završen.')
+    return
+  }
+  
+  if (confirm(`Da li ste sigurni da želite da završite projekat "${project.name}"?\n\nOvo će promeniti status projekta na "Završen".`)) {
+    try {
+      loading.value = true
+      
+      // Call backend API to complete project
+      const { CompleteProject } = await import('../../wailsjs/go/main/App.js')
+      
+      await CompleteProject(project.id)
+      
+      // Refresh projects list to show updated status
+      await loadProjects()
+      
+      alert('Projekat je uspešno završen!')
+    } catch (err) {
+      console.error('Error completing project:', err)
+      alert('Greška pri završavanju projekta: ' + (err.message || err))
     } finally {
       loading.value = false
     }
@@ -677,7 +913,8 @@ async function saveProject() {
         datum_pocetka: projectForm.value.startDate ? new Date(projectForm.value.startDate).toISOString() : null,
         datum_zavrsetka: projectForm.value.endDate ? new Date(projectForm.value.endDate).toISOString() : null,
         radni_tok_id: projectForm.value.workflowId ? parseInt(projectForm.value.workflowId) : null,
-        clanovi_tima: projectForm.value.teamMembers.map(m => m.id)
+        clanovi_tima: projectForm.value.teamMembers.map(m => m.id),
+        resursi: projectForm.value.resources || ''
       }
       
       console.log('Creating project with data:', projectData)
@@ -718,6 +955,7 @@ async function saveProject() {
 function closeModals() {
   showCreateModal.value = false
   showEditModal.value = false
+  showDetailsModal.value = false
   selectedProject.value = null
   selectedUserId.value = ''
   projectForm.value = {
@@ -910,6 +1148,17 @@ onMounted(async () => {
 
 .btn-icon-small:hover {
   transform: scale(1.2);
+}
+
+.btn-icon-small.success {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.btn-icon-small.success:hover {
+  color: #218838;
+  filter: brightness(1.1);
 }
 
 .btn-icon-small.danger:hover {
@@ -1520,5 +1769,26 @@ onMounted(async () => {
   font-size: 0.75rem;
   color: #666;
 }
-</style>
 
+/* View-only styles for details modal */
+.team-member-item.view-only {
+  background: #fafafa;
+  border: 1px solid #e5e5e5;
+}
+
+.form-group input:disabled,
+.form-group textarea:disabled,
+.form-group select:disabled {
+  background: #f5f5f5;
+  color: #666;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.form-group input:read-only,
+.form-group textarea:read-only {
+  background: #f5f5f5;
+  color: #666;
+  cursor: default;
+}
+</style>

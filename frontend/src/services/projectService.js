@@ -46,6 +46,7 @@ function mapProjectsToUI(items) {
     teamCount: p.broj_clanova || 0,
     taskCount: p.broj_zadataka || 0,
     workflowId: p.radni_tok_id || null,
+    resources: p.resursi || '',
     team: []
   }))
 }
@@ -104,7 +105,8 @@ export async function createProject(projectData) {
     datum_pocetka: projectData.startDate ? formatDateForAPI(projectData.startDate) : formatDateForAPI(new Date()),
     datum_zavrsetka: projectData.deadline ? formatDateForAPI(projectData.deadline) : null,
     radni_tok_id: projectData.workflowId || null,
-    clanovi_tima: projectData.teamMembers || []
+    clanovi_tima: projectData.teamMembers || [],
+    resursi: projectData.resources || ''
   }
   
   await CreateNewProject(payload)
@@ -122,7 +124,8 @@ export async function updateProject(projectId, projectData) {
     datum_zavrsetka: projectData.deadline ? formatDateForAPI(projectData.deadline) : null,
     status: projectData.status === 'active' ? 'aktivan' : projectData.status,
     rukovodilac_id: projectData.leaderId || null,
-    radni_tok_id: projectData.workflowId || null
+    radni_tok_id: projectData.workflowId || null,
+    resursi: projectData.resources || ''
   }
   
   await UpdateProject(projectId, payload)
