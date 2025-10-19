@@ -11,7 +11,12 @@
           <button class="btn btn-secondary" @click="toggleView">
             {{ viewMode === 'kanban' ? '📋 Lista' : '📊 Kanban' }}
           </button>
-          <button class="btn btn-primary" @click="showCreateModal = true">
+          <button 
+            v-if="canManageProject"
+            class="btn btn-primary" 
+            @click="openCreateModal" 
+            :disabled="!filters.project"
+          >
             <span class="btn-icon">➕</span>
             Novi zadatak
           </button>
@@ -19,14 +24,15 @@
       </div>
       
       <!-- Filters -->
+            <!-- Filters -->
       <div class="filters card">
         <div class="filter-group">
           <label>Projekat:</label>
-          <select v-model="filters.project">
-            <option value="">Svi projekti</option>
+          <select v-model="filters.project" :disabled="loading">
+            <option value="">Izaberite projekat</option>
             <option 
               v-for="project in projects" 
-              :key="project.id" 
+              :key="project.id"
               :value="project.id"
             >
               {{ project.name }}
@@ -36,7 +42,7 @@
         
         <div class="filter-group">
           <label>Prioritet:</label>
-          <select v-model="filters.priority">
+          <select v-model="filters.priority" :disabled="!filters.project">
             <option value="">Svi prioriteti</option>
             <option value="high">Visok</option>
             <option value="medium">Srednji</option>
@@ -46,11 +52,11 @@
         
         <div class="filter-group">
           <label>Dodeljeno:</label>
-          <select v-model="filters.assignee">
+          <select v-model="filters.assignee" :disabled="!filters.project">
             <option value="">Svi korisnici</option>
             <option 
               v-for="user in users" 
-              :key="user.id" 
+              :key="user.id"
               :value="user.id"
             >
               {{ user.name }}
@@ -65,152 +71,87 @@
             v-model="filters.search" 
             placeholder="Pretraži zadatke..."
             class="search-input"
+            :disabled="!filters.project"
           >
         </div>
       </div>
       
       <!-- Kanban Board -->
       <div v-if="viewMode === 'kanban'" class="kanban-board">
-        <div 
-          v-for="column in kanbanColumns" 
-          :key="column.id"
-          class="kanban-column"
-        >
-          <div class="column-header">
-            <h3>{{ column.title }}</h3>
-            <span class="task-count">{{ getColumnTasks(column.id).length }}</span>
-          </div>
-          
-          <div 
-            class="column-content"
-            @drop="handleDrop($event, column.id)"
-            @dragover="handleDragOver"
-          >
-            <div 
-              v-for="task in getColumnTasks(column.id)" 
-              :key="task.id"
-              class="task-card"
-              :draggable="true"
-              @dragstart="handleDragStart($event, task)"
-              @click="selectTask(task)"
-            >
-              <div class="task-header">
-                <h4>{{ task.title }}</h4>
-                <button 
-                  class="btn-icon-small" 
-                  @click.stop="editTask(task)"
-                  title="Uredi"
-                >
-                  ✏️
-                </button>
-              </div>
-              
-              <div class="task-description">
-                {{ task.description }}
-              </div>
-              
-              <div class="task-meta">
-                <span 
-                  class="priority-badge" 
-                  :class="`priority-${task.priority}`"
-                >
-                  {{ getPriorityText(task.priority) }}
-                </span>
-                
-                <span class="task-project">
-                  {{ getProjectName(task.projectId) }}
-                </span>
-              </div>
-              
-              <div class="task-footer">
-                <div class="task-assignee">
-                  <div class="avatar">
-                    {{ getAssigneeName(task.assigneeId).charAt(0) }}
-                  </div>
-                  <span>{{ getAssigneeName(task.assigneeId) }}</span>
-                </div>
-                
-                <div class="task-deadline">
-                  {{ formatDate(task.deadline) }}
-                </div>
-              </div>
-            </div>
-            
-            <div v-if="getColumnTasks(column.id).length === 0" class="empty-column">
-              <p>Nema zadataka</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- List View -->
-      <div v-else class="tasks-list">
-        <div class="list-header">
-          <div class="sort-options">
-            <label>Sortiranje:</label>
-            <select v-model="listSort">
-              <option value="title">Naziv</option>
-              <option value="priority">Prioritet</option>
-              <option value="deadline">Deadline</option>
-              <option value="created">Datum kreiranja</option>
-            </select>
-          </div>
+        <div v-if="loading" class="loading-state">
+          <p>Učitavanje...</p>
         </div>
         
-        <div class="tasks-table">
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Zadatak</th>
-                <th>Projekat</th>
-                <th>Prioritet</th>
-                <th>Status</th>
-                <th>Dodeljeno</th>
-                <th>Deadline</th>
-                <th>Akcije</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr 
-                v-for="task in filteredTasks" 
+        <div v-else-if="!filters.project" class="empty-state">
+          <p>👆 Izaberite projekat da biste videli zadatke</p>
+        </div>
+        
+        <div v-else-if="kanbanColumns.length === 0" class="empty-state">
+          <p>📋 Ovaj projekat nema definisan radni tok</p>
+        </div>
+        
+        <template v-else>
+          <div 
+            v-for="column in kanbanColumns" 
+            :key="column.id"
+            class="kanban-column"
+          >
+            <div class="column-header">
+              <h3>{{ column.title }}</h3>
+              <span class="task-count">{{ getColumnTasks(column.id).length }}</span>
+            </div>
+            
+            <div 
+              class="column-content"
+              @drop="handleDrop($event, column.id)"
+              @dragover="handleDragOver"
+            >
+              <div 
+                v-for="task in getColumnTasks(column.id)" 
                 :key="task.id"
+                class="task-card"
+                :draggable="true"
+                @dragstart="handleDragStart($event, task)"
                 @click="selectTask(task)"
-                class="task-row"
               >
-                <td>
-                  <div class="task-cell">
-                    <strong>{{ task.title }}</strong>
-                    <div class="task-desc">{{ task.description }}</div>
-                  </div>
-                </td>
-                <td>{{ getProjectName(task.projectId) }}</td>
-                <td>
+                <div class="task-header">
+                  <h4>{{ task.title }}</h4>
+                  <button 
+                    v-if="canManageProject"
+                    class="btn-icon-small" 
+                    @click.stop="editTask(task)"
+                    title="Uredi"
+                  >
+                    ✏️
+                  </button>
+                </div>
+                
+                <div class="task-description" v-if="task.description">
+                  {{ task.description }}
+                </div>
+                
+                <div class="task-meta">
                   <span 
                     class="priority-badge" 
                     :class="`priority-${task.priority}`"
                   >
                     {{ getPriorityText(task.priority) }}
                   </span>
-                </td>
-                <td>
-                  <span 
-                    class="status-badge" 
-                    :class="`status-${task.status}`"
-                  >
-                    {{ getStatusText(task.status) }}
+                  
+                  <span class="task-project">
+                    {{ task.projectName || getProjectName(task.projectId) }}
                   </span>
-                </td>
-                <td>{{ getAssigneeName(task.assigneeId) }}</td>
-                <td>{{ formatDate(task.deadline) }}</td>
-                <td>
-                  <div class="action-buttons">
-                    <button 
-                      class="btn-icon-small" 
-                      @click.stop="editTask(task)"
-                      title="Uredi"
-                    >
-                      ✏️
-                    </button>
+                </div>
+                
+                <div class="task-footer">
+                  <div class="task-assignee">
+                    <div class="avatar" v-if="task.assigneeName || task.assigneeId">
+                      {{ (task.assigneeName || getAssigneeName(task.assigneeId)).charAt(0) }}
+                    </div>
+                    <span>{{ task.assigneeName || getAssigneeName(task.assigneeId) }}</span>
+                  </div>
+                  
+                  <div class="task-actions" v-if="canManageProject">
                     <button 
                       class="btn-icon-small danger" 
                       @click.stop="deleteTask(task)"
@@ -219,10 +160,248 @@
                       🗑️
                     </button>
                   </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+                
+                <div class="task-deadline" v-if="task.deadline">
+                  📅 {{ formatDate(task.deadline) }}
+                </div>
+              </div>
+              
+              <div v-if="getColumnTasks(column.id).length === 0" class="empty-column">
+                <p>Nema zadataka</p>
+              </div>
+              
+              <!-- Add Task Button in Column -->
+              <button 
+                v-if="canManageProject"
+                class="btn-add-task-column" 
+                @click="openCreateModalForPhase(column.id)"
+                title="Dodaj zadatak u ovu fazu"
+              >
+                Dodaj Zadatak
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+      
+      <!-- List View -->
+      <div v-else class="tasks-list">
+        <div v-if="loading" class="loading-state">
+          <p>Učitavanje...</p>
+        </div>
+        
+        <div v-else-if="!filters.project" class="empty-state">
+          <p>👆 Izaberite projekat da biste videli zadatke</p>
+        </div>
+        
+        <template v-else>
+          <div class="list-header">
+            <div class="sort-options">
+              <label>Sortiranje:</label>
+              <select v-model="listSort">
+                <option value="title">Naziv</option>
+                <option value="priority">Prioritet</option>
+                <option value="deadline">Deadline</option>
+                <option value="created">Datum kreiranja</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="tasks-table">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Zadatak</th>
+                  <th>Projekat</th>
+                  <th>Prioritet</th>
+                  <th>Status</th>
+                  <th>Dodeljeno</th>
+                  <th>Deadline</th>
+                  <th>Akcije</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr 
+                  v-for="task in filteredTasks" 
+                  :key="task.id"
+                  @click="selectTask(task)"
+                  class="task-row"
+                >
+                  <td>
+                    <div class="task-cell">
+                      <strong>{{ task.title }}</strong>
+                      <div class="task-desc" v-if="task.description">{{ task.description }}</div>
+                    </div>
+                  </td>
+                  <td>{{ task.projectName || getProjectName(task.projectId) }}</td>
+                  <td>
+                    <span 
+                      class="priority-badge" 
+                      :class="`priority-${task.priority}`"
+                    >
+                      {{ getPriorityText(task.priority) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="status-badge">
+                      {{ task.phaseName || getStatusText(task.phaseId) }}
+                    </span>
+                  </td>
+                  <td>{{ task.assigneeName || getAssigneeName(task.assigneeId) }}</td>
+                  <td>{{ formatDate(task.deadline) }}</td>
+                  <td>
+                    <div class="action-buttons" v-if="canManageProject">
+                      <button 
+                        class="btn-icon-small" 
+                        @click.stop="editTask(task)"
+                        title="Uredi"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        class="btn-icon-small danger" 
+                        @click.stop="deleteTask(task)"
+                        title="Obriši"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </div>
+      
+      <!-- View Task Details Modal -->
+      <div v-if="showDetailsModal" class="modal-overlay" @click="closeModals">
+        <div class="modal" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">Detalji zadatka</h3>
+            <button class="modal-close" @click="closeModals">×</button>
+          </div>
+          
+          <div class="form-group">
+            <label>Naziv zadatka</label>
+            <input 
+              type="text" 
+              :value="selectedTask?.title || ''" 
+              readonly
+              disabled
+            >
+          </div>
+          
+          <div class="form-group">
+            <label>Opis</label>
+            <textarea 
+              :value="selectedTask?.description || ''" 
+              rows="3"
+              readonly
+              disabled
+            ></textarea>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Projekat</label>
+              <input 
+                type="text" 
+                :value="selectedTask?.projectName || getProjectName(selectedTask?.projectId)" 
+                readonly
+                disabled
+              >
+            </div>
+            
+            <div class="form-group">
+              <label>Prioritet</label>
+              <input 
+                type="text" 
+                :value="getPriorityText(selectedTask?.priority)" 
+                readonly
+                disabled
+              >
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Faza</label>
+              <input 
+                type="text" 
+                :value="selectedTask?.phaseName || getStatusText(selectedTask?.phaseId)" 
+                readonly
+                disabled
+              >
+            </div>
+            
+            <div class="form-group">
+              <label>Dodeljeno korisniku</label>
+              <input 
+                type="text" 
+                :value="selectedTask?.assigneeName || getAssigneeName(selectedTask?.assigneeId)" 
+                readonly
+                disabled
+              >
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Deadline</label>
+              <input 
+                type="date" 
+                :value="selectedTask?.deadline" 
+                readonly
+                disabled
+              >
+            </div>
+            
+            <div class="form-group">
+              <label>Progres</label>
+              <input 
+                type="text" 
+                :value="`${selectedTask?.progress || 0}%`" 
+                readonly
+                disabled
+              >
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Resursi</label>
+            <textarea 
+              :value="selectedTask?.resources || ''" 
+              rows="2"
+              readonly
+              disabled
+            ></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Datum kreiranja</label>
+            <input 
+              type="text" 
+              :value="formatDate(selectedTask?.created)" 
+              readonly
+              disabled
+            >
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" @click="closeModals">
+              Zatvori
+            </button>
+            <button 
+              v-if="canManageProject" 
+              type="button" 
+              class="btn btn-primary" 
+              @click="editTaskFromDetails"
+            >
+              Uredi zadatak
+            </button>
+          </div>
         </div>
       </div>
       
@@ -238,7 +417,7 @@
           
           <form @submit.prevent="saveTask">
             <div class="form-group">
-              <label>Naziv zadatka</label>
+              <label>Naziv zadatka *</label>
               <input 
                 type="text" 
                 v-model="taskForm.title" 
@@ -258,8 +437,8 @@
             
             <div class="form-row">
               <div class="form-group">
-                <label>Projekat</label>
-                <select v-model="taskForm.projectId" required>
+                <label>Projekat *</label>
+                <select v-model="taskForm.projectId" required :disabled="showEditModal">
                   <option value="">Izaberite projekat</option>
                   <option 
                     v-for="project in projects" 
@@ -282,10 +461,29 @@
             </div>
             
             <div class="form-row">
+              <div class="form-group form-group-full">
+                <label>Faza {{ showEditModal ? '*' : '' }}</label>
+                <select v-model="taskForm.phaseId" :required="showEditModal">
+                  <option value="">{{ phases.length > 0 ? 'Izaberite fazu (opciono)' : 'Nema dostupnih faza' }}</option>
+                  <option 
+                    v-for="phase in phases" 
+                    :key="phase.id" 
+                    :value="phase.id"
+                  >
+                    {{ phase.name }}
+                  </option>
+                </select>
+                <small v-if="showCreateModal" style="color: #7f8c8d; font-size: 12px; margin-top: 4px; display: block;">
+                  Ako ne izaberete fazu, zadatak će biti dodeljen prvoj fazi projekta
+                </small>
+              </div>
+            </div>
+            
+            <div class="form-row">
               <div class="form-group">
                 <label>Dodeli korisniku</label>
-                <select v-model="taskForm.assigneeId" required>
-                  <option value="">Izaberite korisnika</option>
+                <select v-model="taskForm.assigneeId">
+                  <option :value="null">Nedodeljeno</option>
                   <option 
                     v-for="user in users" 
                     :key="user.id" 
@@ -297,22 +495,20 @@
               </div>
               
               <div class="form-group">
-                <label>Status</label>
-                <select v-model="taskForm.status">
-                  <option value="todo">Za rad</option>
-                  <option value="in-progress">U toku</option>
-                  <option value="review">Na proveri</option>
-                  <option value="done">Završeno</option>
-                </select>
+                <label>Deadline</label>
+                <input 
+                  type="date" 
+                  v-model="taskForm.deadline"
+                >
               </div>
             </div>
             
             <div class="form-group">
-              <label>Deadline</label>
+              <label>Resursi</label>
               <input 
-                type="date" 
-                v-model="taskForm.deadline"
-                required
+                type="text" 
+                v-model="taskForm.resources" 
+                placeholder="Unesite potrebne resurse (npr. 2 programera, server, oprema)"
               >
             </div>
             
@@ -332,16 +528,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Layout from '../components/Layout.vue'
+import { useAuthStore } from '../stores/auth.js'
+import {
+  fetchUserProjects,
+  fetchWorkflowPhases,
+  fetchProjectTasks,
+  fetchProjectMembers,
+  createTask,
+  updateTask,
+  deleteTask as deleteTaskService,
+  moveTaskToPhase
+} from '../services/taskService.js'
+
+// Auth store
+const authStore = useAuthStore()
 
 // Reactive data
 const viewMode = ref('kanban')
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
+const showDetailsModal = ref(false)
 const selectedTask = ref(null)
 const draggedTask = ref(null)
 const listSort = ref('title')
+const loading = ref(false)
+const selectedProjectId = ref(null)
 
 const filters = ref({
   project: '',
@@ -355,78 +568,58 @@ const taskForm = ref({
   description: '',
   projectId: '',
   priority: 'medium',
-  assigneeId: '',
-  status: 'todo',
-  deadline: ''
+  assigneeId: null,
+  deadline: '',
+  phaseId: null,
+  resources: ''
 })
 
-const kanbanColumns = ref([
-  { id: 'todo', title: 'Za rad', color: '#95a5a6' },
-  { id: 'in-progress', title: 'U toku', color: '#3498db' },
-  { id: 'review', title: 'Na proveri', color: '#f39c12' },
-  { id: 'done', title: 'Završeno', color: '#2ecc71' }
-])
+// Data from backend
+const projects = ref([])
+const phases = ref([])
+const tasks = ref([])
+const users = ref([])
 
-// Mock data
-const tasks = ref([
-  {
-    id: 1,
-    title: 'Implementacija login sistema',
-    description: 'Kreiranje sigurnog login sistema sa 2FA',
-    projectId: 1,
-    priority: 'high',
-    status: 'in-progress',
-    assigneeId: 1,
-    deadline: '2024-09-15',
-    created: '2024-09-01'
-  },
-  {
-    id: 2,
-    title: 'Dizajn korisničkog interfejsa',
-    description: 'Kreiranje modernog UI/UX dizajna',
-    projectId: 1,
-    priority: 'medium',
-    status: 'todo',
-    assigneeId: 2,
-    deadline: '2024-09-20',
-    created: '2024-09-02'
-  },
-  {
-    id: 3,
-    title: 'Testiranje API funkcionalnosti',
-    description: 'Unit i integration testovi za API',
-    projectId: 2,
-    priority: 'high',
-    status: 'review',
-    assigneeId: 3,
-    deadline: '2024-09-12',
-    created: '2024-08-25'
-  },
-  {
-    id: 4,
-    title: 'Optimizacija baze podataka',
-    description: 'Poboljšanje performansi database upita',
-    projectId: 2,
-    priority: 'medium',
-    status: 'done',
-    assigneeId: 1,
-    deadline: '2024-09-08',
-    created: '2024-08-20'
+// Check if user can manage the selected project (must be the project manager)
+const canManageProject = computed(() => {
+  if (!authStore.user || !selectedProjectId.value) return false
+  
+  // Find the selected project
+  const project = projects.value.find(p => p.id === selectedProjectId.value)
+  if (!project) return false
+  
+  // Check if logged-in user ID matches project's manager ID
+  const currentUserId = authStore.user.korisnik_id || authStore.user.korisnikID
+  const projectLeaderId = project.leaderId || project.rukovodilac_id
+  
+  console.log('🔐 Permission check:', {
+    currentUserId,
+    projectLeaderId,
+    projectName: project.name,
+    canManage: currentUserId === projectLeaderId
+  })
+  
+  return currentUserId === projectLeaderId
+})
+
+// Computed kanban columns based on phases
+const kanbanColumns = computed(() => {
+  if (!phases.value || phases.value.length === 0) {
+    return [
+      { id: 1, title: 'Za rad', color: '#95a5a6' },
+      { id: 2, title: 'U toku', color: '#3498db' },
+      { id: 3, title: 'Na proveri', color: '#f39c12' },
+      { id: 4, title: 'Završeno', color: '#2ecc71' }
+    ]
   }
-])
-
-const projects = ref([
-  { id: 1, name: 'Web Portal Refactoring' },
-  { id: 2, name: 'AI Analitika Modula' },
-  { id: 3, name: 'Mobile Aplikacija' }
-])
-
-const users = ref([
-  { id: 1, name: 'Marko Petrović' },
-  { id: 2, name: 'Ana Jovanović' },
-  { id: 3, name: 'Stefan Nikolić' },
-  { id: 4, name: 'Milica Stojković' }
-])
+  
+  const colors = ['#95a5a6', '#3498db', '#f39c12', '#2ecc71', '#9b59b6', '#e74c3c']
+  return phases.value.map((phase, index) => ({
+    id: phase.id,
+    title: phase.name,
+    color: colors[index % colors.length]
+  }))
+})
 
 // Computed
 const filteredTasks = computed(() => {
@@ -435,6 +628,24 @@ const filteredTasks = computed(() => {
   // Apply filters
   if (filters.value.project) {
     filtered = filtered.filter(t => t.projectId == filters.value.project)
+  }
+  
+  // If user is a researcher, only show tasks assigned to them
+  if (authStore.isResearcher && authStore.user) {
+    const currentUserId = authStore.user.korisnik_id || authStore.user.korisnikID
+    console.log('🔍 Researcher filter active:', {
+      userId: currentUserId,
+      naziv_uloge: authStore.user.naziv_uloge,
+      totalTasks: filtered.length
+    })
+    filtered = filtered.filter(t => {
+      const isAssigned = t.assigneeId == currentUserId
+      if (!isAssigned) {
+        console.log('  ❌ Filtered out task:', t.title, 'assigned to:', t.assigneeId)
+      }
+      return isAssigned
+    })
+    console.log('  ✅ Tasks after researcher filter:', filtered.length)
   }
   
   if (filters.value.priority) {
@@ -449,7 +660,7 @@ const filteredTasks = computed(() => {
     const search = filters.value.search.toLowerCase()
     filtered = filtered.filter(t => 
       t.title.toLowerCase().includes(search) || 
-      t.description.toLowerCase().includes(search)
+      (t.description && t.description.toLowerCase().includes(search))
     )
   }
 
@@ -463,8 +674,12 @@ const filteredTasks = computed(() => {
           const priorityOrder = { high: 3, medium: 2, low: 1 }
           return priorityOrder[b.priority] - priorityOrder[a.priority]
         case 'deadline':
+          if (!a.deadline) return 1
+          if (!b.deadline) return -1
           return new Date(a.deadline) - new Date(b.deadline)
         case 'created':
+          if (!a.created) return 1
+          if (!b.created) return -1
           return new Date(b.created) - new Date(a.created)
         default:
           return 0
@@ -475,13 +690,67 @@ const filteredTasks = computed(() => {
   return filtered
 })
 
+// Watch for project selection changes
+watch(() => filters.value.project, async (newProjectId) => {
+  if (newProjectId) {
+    selectedProjectId.value = newProjectId
+    await loadProjectData(newProjectId)
+  } else {
+    selectedProjectId.value = null
+    phases.value = []
+    tasks.value = []
+    users.value = []
+  }
+})
+
 // Methods
+async function loadProjects() {
+  loading.value = true
+  try {
+    projects.value = await fetchUserProjects()
+    
+    // Auto-select first project if available
+    if (projects.value.length > 0 && !filters.value.project) {
+      filters.value.project = projects.value[0].id
+    }
+  } catch (error) {
+    console.error('Error loading projects:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadProjectData(projectId) {
+  loading.value = true
+  try {
+    // Find project to get workflow ID
+    const project = projects.value.find(p => p.id === projectId)
+    
+    if (project && project.workflowId) {
+      // Load phases for the workflow
+      phases.value = await fetchWorkflowPhases(project.workflowId)
+    } else {
+      phases.value = []
+    }
+    
+    // Load tasks for the project
+    tasks.value = await fetchProjectTasks(projectId)
+    
+    // Load project members
+    users.value = await fetchProjectMembers(projectId)
+  } catch (error) {
+    console.error('Error loading project data:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 function toggleView() {
   viewMode.value = viewMode.value === 'kanban' ? 'list' : 'kanban'
 }
 
 function getColumnTasks(columnId) {
-  return filteredTasks.value.filter(task => task.status === columnId)
+  return filteredTasks.value.filter(task => task.phaseId === columnId)
 }
 
 function getProjectName(projectId) {
@@ -489,6 +758,7 @@ function getProjectName(projectId) {
 }
 
 function getAssigneeName(assigneeId) {
+  if (!assigneeId) return 'Nedodeljeno'
   return users.value.find(u => u.id === assigneeId)?.name || 'Nepoznat korisnik'
 }
 
@@ -501,84 +771,174 @@ function getPriorityText(priority) {
   return priorityMap[priority] || priority
 }
 
-function getStatusText(status) {
-  const statusMap = {
-    'todo': 'Za rad',
-    'in-progress': 'U toku',
-    'review': 'Na proveri',
-    'done': 'Završeno'
-  }
-  return statusMap[status] || status
+function getStatusText(phaseId) {
+  const phase = phases.value.find(p => p.id === phaseId)
+  return phase ? phase.name : 'Nepoznata faza'
 }
 
 function formatDate(dateString) {
+  if (!dateString) return ''
   return new Date(dateString).toLocaleDateString('sr-RS')
 }
 
 function selectTask(task) {
   selectedTask.value = task
+  showDetailsModal.value = true
   console.log('Selected task:', task)
 }
 
+function editTaskFromDetails() {
+  // Close details modal and open edit modal
+  showDetailsModal.value = false
+  editTask(selectedTask.value)
+}
+
 function editTask(task) {
+  // Check permission before allowing edit
+  if (!canManageProject.value) {
+    alert('Nemate dozvolu za uređivanje zadataka. Samo rukovodilac projekta može vršiti izmene.')
+    return
+  }
+  
   selectedTask.value = task
   taskForm.value = {
     title: task.title,
-    description: task.description,
+    description: task.description || '',
     projectId: task.projectId,
     priority: task.priority,
     assigneeId: task.assigneeId,
-    status: task.status,
-    deadline: task.deadline
+    deadline: task.deadline || '',
+    phaseId: task.phaseId,
+    resources: task.resources || ''
   }
   showEditModal.value = true
 }
 
-function deleteTask(task) {
+async function deleteTask(task) {
+  // Check permission before allowing delete
+  if (!canManageProject.value) {
+    alert('Nemate dozvolu za brisanje zadataka. Samo rukovodilac projekta može vršiti izmene.')
+    return
+  }
+  
   if (confirm(`Da li ste sigurni da želite da obrišete zadatak "${task.title}"?`)) {
-    const index = tasks.value.findIndex(t => t.id === task.id)
-    if (index > -1) {
-      tasks.value.splice(index, 1)
+    loading.value = true
+    try {
+      const result = await deleteTaskService(task.id)
+      if (result.success) {
+        // Reload tasks
+        if (selectedProjectId.value) {
+          await loadProjectData(selectedProjectId.value)
+        }
+      } else {
+        alert('Greška pri brisanju zadatka: ' + (result.error || 'Nepoznata greška'))
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      alert('Greška pri brisanju zadatka')
+    } finally {
+      loading.value = false
     }
   }
 }
 
-function saveTask() {
-  if (showCreateModal.value) {
-    // Create new task
-    const newTask = {
-      id: Date.now(),
-      ...taskForm.value,
-      created: new Date().toISOString().split('T')[0]
-    }
-    tasks.value.push(newTask)
-  } else if (showEditModal.value && selectedTask.value) {
-    // Update existing task
-    const index = tasks.value.findIndex(t => t.id === selectedTask.value.id)
-    if (index > -1) {
-      tasks.value[index] = {
-        ...tasks.value[index],
-        ...taskForm.value
-      }
-    }
+async function saveTask() {
+  if (!taskForm.value.title) {
+    alert('Naziv zadatka je obavezan')
+    return
   }
   
-  closeModals()
+  if (!taskForm.value.projectId) {
+    alert('Projekat je obavezan')
+    return
+  }
+  
+  if (showEditModal.value && !taskForm.value.phaseId) {
+    alert('Faza je obavezna prilikom uređivanja zadatka')
+    return
+  }
+  
+  loading.value = true
+  try {
+    if (showCreateModal.value) {
+      // Create new task
+      const result = await createTask(taskForm.value)
+      if (result.success) {
+        closeModals()
+        // Reload tasks
+        if (selectedProjectId.value) {
+          await loadProjectData(selectedProjectId.value)
+        }
+      } else {
+        alert('Greška pri kreiranju zadatka: ' + (result.error || 'Nepoznata greška'))
+      }
+    } else if (showEditModal.value && selectedTask.value) {
+      // Update existing task
+      const result = await updateTask(selectedTask.value.id, taskForm.value)
+      if (result.success) {
+        closeModals()
+        // Reload tasks
+        if (selectedProjectId.value) {
+          await loadProjectData(selectedProjectId.value)
+        }
+      } else {
+        alert('Greška pri ažuriranju zadatka: ' + (result.error || 'Nepoznata greška'))
+      }
+    }
+  } catch (error) {
+    console.error('Error saving task:', error)
+    alert('Greška pri čuvanju zadatka')
+  } finally {
+    loading.value = false
+  }
 }
 
 function closeModals() {
   showCreateModal.value = false
   showEditModal.value = false
+  showDetailsModal.value = false
   selectedTask.value = null
   taskForm.value = {
     title: '',
     description: '',
-    projectId: '',
+    projectId: filters.value.project || '',
     priority: 'medium',
-    assigneeId: '',
-    status: 'todo',
-    deadline: ''
+    assigneeId: null,
+    deadline: '',
+    phaseId: null,
+    resources: ''
   }
+}
+
+function openCreateModal() {
+  // Check permission before allowing create
+  if (!canManageProject.value) {
+    alert('Nemate dozvolu za kreiranje zadataka. Samo rukovodilac projekta može kreirati zadatke.')
+    return
+  }
+  
+  if (!filters.value.project) {
+    alert('Molimo prvo izaberite projekat')
+    return
+  }
+  taskForm.value.projectId = filters.value.project
+  showCreateModal.value = true
+}
+
+function openCreateModalForPhase(phaseId) {
+  // Check permission before allowing create
+  if (!canManageProject.value) {
+    alert('Nemate dozvolu za kreiranje zadataka. Samo rukovodilac projekta može kreirati zadatke.')
+    return
+  }
+  
+  if (!filters.value.project) {
+    alert('Molimo prvo izaberite projekat')
+    return
+  }
+  taskForm.value.projectId = filters.value.project
+  taskForm.value.phaseId = phaseId
+  showCreateModal.value = true
 }
 
 // Drag and Drop handlers
@@ -592,13 +952,32 @@ function handleDragOver(event) {
   event.dataTransfer.dropEffect = 'move'
 }
 
-function handleDrop(event, newStatus) {
+async function handleDrop(event, newPhaseId) {
   event.preventDefault()
   
-  if (draggedTask.value && draggedTask.value.status !== newStatus) {
-    const taskIndex = tasks.value.findIndex(t => t.id === draggedTask.value.id)
-    if (taskIndex > -1) {
-      tasks.value[taskIndex].status = newStatus
+  if (draggedTask.value && draggedTask.value.phaseId !== newPhaseId) {
+    loading.value = true
+    try {
+      const result = await moveTaskToPhase(draggedTask.value.id, newPhaseId)
+      if (result.success) {
+        // Update local task
+        const taskIndex = tasks.value.findIndex(t => t.id === draggedTask.value.id)
+        if (taskIndex > -1) {
+          tasks.value[taskIndex].phaseId = newPhaseId
+          // Update phase name
+          const phase = phases.value.find(p => p.id === newPhaseId)
+          if (phase) {
+            tasks.value[taskIndex].phaseName = phase.name
+          }
+        }
+      } else {
+        alert('Greška pri premeštanju zadatka: ' + (result.error || 'Nepoznata greška'))
+      }
+    } catch (error) {
+      console.error('Error moving task:', error)
+      alert('Greška pri premeštanju zadatka')
+    } finally {
+      loading.value = false
     }
   }
   
@@ -606,8 +985,8 @@ function handleDrop(event, newStatus) {
 }
 
 // Lifecycle
-onMounted(() => {
-  console.log('Tasks loaded')
+onMounted(async () => {
+  await loadProjects()
 })
 </script>
 
@@ -645,6 +1024,22 @@ onMounted(() => {
   margin-right: 8px;
 }
 
+/* Loading and Empty States */
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: #7f8c8d;
+  font-size: 16px;
+  grid-column: 1 / -1;
+}
+
+.loading-state p,
+.empty-state p {
+  margin: 0;
+  font-size: 18px;
+}
+
 /* Filters */
 .filters {
   display: flex;
@@ -680,17 +1075,39 @@ onMounted(() => {
 
 /* Kanban Board */
 .kanban-board {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 20px;
   overflow-x: auto;
+  overflow-y: hidden;
   min-height: 500px;
+  padding-bottom: 10px;
+}
+
+/* Custom scrollbar for better UX */
+.kanban-board::-webkit-scrollbar {
+  height: 8px;
+}
+
+.kanban-board::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.kanban-board::-webkit-scrollbar-thumb {
+  background: #bdc3c7;
+  border-radius: 4px;
+}
+
+.kanban-board::-webkit-scrollbar-thumb:hover {
+  background: #95a5a6;
 }
 
 .kanban-column {
   background: #f8f9fa;
   border-radius: 8px;
   min-width: 300px;
+  max-width: 300px;
+  flex-shrink: 0;
 }
 
 .column-header {
@@ -788,6 +1205,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+}
+
+.task-actions {
+  display: flex;
+  gap: 4px;
 }
 
 .avatar {
@@ -805,12 +1228,40 @@ onMounted(() => {
 
 .task-deadline {
   font-size: 11px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ecf0f1;
 }
 
 .empty-column {
   text-align: center;
   padding: 40px 20px;
   color: #95a5a6;
+}
+
+/* Add Task Button in Column */
+.btn-add-task-column {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  color: #7f8c8d;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-add-task-column:hover {
+  background: #f8f9fa;
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.btn-add-task-column:active {
+  transform: scale(0.98);
 }
 
 /* List View */
@@ -889,6 +1340,21 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.priority-high {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.priority-medium {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.priority-low {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
 /* Status badges */
 .status-badge {
   padding: 2px 6px;
@@ -927,6 +1393,10 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+
+.form-group-full {
+  grid-column: 1 / -1;
 }
 
 .form-actions {

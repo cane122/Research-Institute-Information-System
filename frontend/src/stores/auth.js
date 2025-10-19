@@ -10,7 +10,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Getters
   const isAuthenticated = computed(() => !!user.value)
-  const isAdmin = computed(() => user.value?.uloga === 'admin')
+  const isAdmin = computed(() => user.value?.uloga === 'admin' || user.value?.naziv_uloge === 'Administrator')
+  const isResearcher = computed(() => user.value?.uloga === 'researcher' || user.value?.naziv_uloge === 'Istrazivac')
   const userName = computed(() => {
     if (!user.value) return ''
     return user.value.ime && user.value.prezime 
@@ -188,6 +189,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    isResearcher,
     userName,
     login,
     logout,

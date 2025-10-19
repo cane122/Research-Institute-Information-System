@@ -85,6 +85,7 @@ type Zadaci struct {
 	Rok                  *time.Time `json:"rok" db:"rok"`
 	Prioritet            *string    `json:"prioritet" db:"prioritet"`
 	Progres              int        `json:"progres" db:"progres"`
+	Resursi              *string    `json:"resursi" db:"resursi"`
 	KreiranDatuma        time.Time  `json:"kreiran_datuma" db:"kreiran_datuma"`
 
 	// Joined fields
@@ -279,6 +280,8 @@ type CreateTaskRequest struct {
 	DodjeljenKorisnikuID *int       `json:"dodeljen_korisniku_id"`
 	Rok                  *time.Time `json:"rok"`
 	Prioritet            string     `json:"prioritet"`
+	FazaID               *int       `json:"faza_id"`
+	Resursi              string     `json:"resursi"`
 }
 
 // UpdateTaskRequest represents task update data
@@ -290,6 +293,7 @@ type UpdateTaskRequest struct {
 	Prioritet            *string    `json:"prioritet"`
 	Progres              *int       `json:"progres"`
 	FazaID               *int       `json:"faza_id"`
+	Resursi              *string    `json:"resursi"`
 }
 
 // UploadDocumentRequest represents document upload data

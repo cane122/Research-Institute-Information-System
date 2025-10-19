@@ -1,0 +1,247 @@
+import { 
+  GetProjectsByCurrentUser,
+  GetTasksByProject,
+  GetTasksByCurrentUser,
+  GetTaskByID,
+  CreateTask,
+  UpdateTask,
+  DeleteTask,
+  MoveTaskToPhase,
+  GetWorkflowPhases,
+  GetProjectMembers
+} from '../../wailsjs/go/main/App.js'
+
+/**
+ * Fetches all projects for the current user
+ */
+export async function fetchUserProjects() {
+  try {
+    const projects = await GetProjectsByCurrentUser()
+    return (projects || []).map(p => ({
+      id: p.projekat_id,
+      name: p.naziv_projekta,
+      workflowId: p.radni_tok_id,
+      leaderId: p.rukovodilac_id
+    }))
+  } catch (error) {
+    console.error('Error fetching user projects:', error)
+    return []
+  }
+}
+
+/**
+ * Fetches phases for a specific workflow
+ */
+export async function fetchWorkflowPhases(workflowId) {
+  try {
+    if (!workflowId) return []
+    const phases = await GetWorkflowPhases(workflowId)
+    return (phases || []).map(p => ({
+      id: p.faza_id,
+      name: p.naziv_faze,
+      order: p.redosled,
+      workflowId: p.radni_tok_id
+    }))
+  } catch (error) {
+    console.error('Error fetching workflow phases:', error)
+    return []
+  }
+}
+
+/**
+ * Fetches tasks for a specific project
+ */
+export async function fetchProjectTasks(projectId) {
+  try {
+    if (!projectId) return []
+    const tasks = await GetTasksByProject(projectId)
+    return (tasks || []).map(mapTaskToUI)
+  } catch (error) {
+    console.error('Error fetching project tasks:', error)
+    return []
+  }
+}
+
+/**
+ * Fetches all tasks for current user
+ */
+export async function fetchCurrentUserTasks() {
+  try {
+    const tasks = await GetTasksByCurrentUser()
+    return (tasks || []).map(mapTaskToUI)
+  } catch (error) {
+    console.error('Error fetching user tasks:', error)
+    return []
+  }
+}
+
+/**
+ * Fetches project members
+ */
+export async function fetchProjectMembers(projectId) {
+  try {
+    if (!projectId) return []
+    const members = await GetProjectMembers(projectId)
+    return (members || []).map(m => ({
+      id: m.korisnik_id,
+      name: `${m.ime || ''} ${m.prezime || ''}`.trim() || m.korisnicko_ime,
+      username: m.korisnicko_ime
+    }))
+  } catch (error) {
+    console.error('Error fetching project members:', error)
+    return []
+  }
+}
+
+/**
+ * Maps backend task to UI format
+ */
+function mapTaskToUI(task) {
+  return {
+    id: task.zadatak_id,
+    title: task.naziv_zadatka,
+    description: task.opis || '',
+    projectId: task.projekat_id,
+    projectName: task.naziv_projekta || '',
+    phaseId: task.faza_id,
+    phaseName: task.naziv_faze || '',
+    assigneeId: task.dodeljen_korisniku_id,
+    assigneeName: task.dodeljen_korisniku || '',
+    deadline: task.rok ? formatDateForInput(task.rok) : null,
+    priority: mapPriority(task.prioritet),
+    progress: task.progres || 0,
+    resources: task.resursi || '',
+    created: task.kreiran_datuma ? formatDateForInput(task.kreiran_datuma) : null
+  }
+}
+
+/**
+ * Maps backend priority to UI priority
+ */
+function mapPriority(priority) {
+  if (!priority) return 'medium'
+  const p = priority.toLowerCase()
+  if (p === 'visok' || p === 'high') return 'high'
+  if (p === 'nizak' || p === 'low') return 'low'
+  return 'medium'
+}
+
+/**
+ * Maps UI priority to backend priority
+ */
+function mapPriorityToBackend(priority) {
+  const priorityMap = {
+    'high': 'visok',
+    'medium': 'srednji',
+    'low': 'nizak'
+  }
+  return priorityMap[priority] || 'srednji'
+}
+
+/**
+ * Formats date for input fields (YYYY-MM-DD)
+ */
+function formatDateForInput(dateStr) {
+  if (!dateStr) return null
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return null
+  return d.toISOString().split('T')[0]
+}
+
+/**
+ * Formats date for API (RFC3339)
+ */
+function formatDateForAPI(dateStr) {
+  if (!dateStr) return null
+  return new Date(dateStr).toISOString()
+}
+
+/**
+ * Creates a new task
+ */
+export async function createTask(taskData) {
+  try {
+    const request = {
+      projekat_id: taskData.projectId,
+      naziv_zadatka: taskData.title,
+      opis: taskData.description || '',
+      dodeljen_korisniku_id: taskData.assigneeId || null,
+      rok: taskData.deadline ? formatDateForAPI(taskData.deadline) : null,
+      prioritet: mapPriorityToBackend(taskData.priority || 'medium'),
+      faza_id: taskData.phaseId || null,
+      resursi: taskData.resources || ''
+    }
+    
+    await CreateTask(request)
+    return { success: true }
+  } catch (error) {
+    console.error('Error creating task:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Updates an existing task
+ */
+export async function updateTask(taskId, updates) {
+  try {
+    const request = {}
+    
+    if (updates.title !== undefined) {
+      request.naziv_zadatka = updates.title
+    }
+    if (updates.description !== undefined) {
+      request.opis = updates.description
+    }
+    if (updates.assigneeId !== undefined) {
+      request.dodeljen_korisniku_id = updates.assigneeId
+    }
+    if (updates.deadline !== undefined) {
+      request.rok = updates.deadline ? formatDateForAPI(updates.deadline) : null
+    }
+    if (updates.priority !== undefined) {
+      request.prioritet = mapPriorityToBackend(updates.priority)
+    }
+    if (updates.progress !== undefined) {
+      request.progres = updates.progress
+    }
+    if (updates.phaseId !== undefined) {
+      request.faza_id = updates.phaseId
+    }
+    if (updates.resources !== undefined) {
+      request.resursi = updates.resources
+    }
+    
+    await UpdateTask(taskId, request)
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating task:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Moves task to a different phase
+ */
+export async function moveTaskToPhase(taskId, newPhaseId) {
+  try {
+    await MoveTaskToPhase(taskId, newPhaseId)
+    return { success: true }
+  } catch (error) {
+    console.error('Error moving task to phase:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Deletes a task
+ */
+export async function deleteTask(taskId) {
+  try {
+    await DeleteTask(taskId)
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting task:', error)
+    return { success: false, error: error.message }
+  }
+}

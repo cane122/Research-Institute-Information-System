@@ -40,24 +40,24 @@ INSERT INTO ClanoviProjekta (projekat_id, korisnik_id) VALUES
 (5, 3), (5, 5), (5, 6), (5, 7), (5, 10);
 
 -- 4. KREIRANJE ZADATAKA
-INSERT INTO Zadaci (projekat_id, faza_id, naziv_zadatka, opis, dodeljen_korisniku_id, rok, prioritet, progres) VALUES 
+INSERT INTO Zadaci (projekat_id, faza_id, naziv_zadatka, opis, dodeljen_korisniku_id, rok, prioritet, progres, resursi) VALUES 
 -- AI u Zdravstvu zadaci
-(1, 6, 'Definisanje zahteva za AI model', 'Analiza medicinskih standarda i zahteva za dijagnostiku', 5, '2025-02-15', 'Visok', 100),
-(1, 7, 'Prikupljanje medicinskih slika', 'Kreiranje dataseta za treniranje AI modela', 6, '2025-03-30', 'Visok', 80),
-(1, 8, 'Implementacija CNN algoritma', 'Razvoj konvolucijskog neuronskog modela', 5, '2025-05-15', 'Visok', 60),
+(1, 6, 'Definisanje zahteva za AI model', 'Analiza medicinskih standarda i zahteva za dijagnostiku', 5, '2025-02-15', 'Visok', 100, '2 ML inženjera, medicinska literatura, Confluence'),
+(1, 7, 'Prikupljanje medicinskih slika', 'Kreiranje dataseta za treniranje AI modela', 6, '2025-03-30', 'Visok', 80, 'Pristup bolničkom sistemu, 500GB storage, DICOM softver'),
+(1, 8, 'Implementacija CNN algoritma', 'Razvoj konvolucijskog neuronskog modela', 5, '2025-05-15', 'Visok', 60, 'GPU server Tesla V100, TensorFlow, 3 data scientist-a'),
 
 -- Pametni Gradovi zadaci
-(2, 1, 'Analiza postojece infrastrukture', 'Mapiranje trenutnih sistema javnog osvetljenja', 7, '2025-03-15', 'Srednji', 90),
-(2, 2, 'Dizajn IoT senzora', 'Specifikacija senzora za monitoring prometa', 8, '2025-04-30', 'Visok', 70),
-(2, 3, 'Prototip mobilne aplikacije', 'Razvoj aplikacije za gradjanе', 7, '2025-06-30', 'Srednji', 40),
+(2, 1, 'Analiza postojece infrastrukture', 'Mapiranje trenutnih sistema javnog osvetljenja', 7, '2025-03-15', 'Srednji', 90, 'Gradski planovi, terenska oprema, 2 tehničara'),
+(2, 2, 'Dizajn IoT senzora', 'Specifikacija senzora za monitoring prometa', 8, '2025-04-30', 'Visok', 70, '10 Arduino board-a, senzori pokreta, 2 embedded developera'),
+(2, 3, 'Prototip mobilne aplikacije', 'Razvoj aplikacije za gradjanе', 7, '2025-06-30', 'Srednji', 40, 'React Native, Firebase, 2 mobile developera'),
 
 -- Kvantno Racunarstvo zadaci
-(3, 7, 'Implementacija Shor algoritma', 'Kvantni algoritam za faktorizaciju velikih brojeva', 5, '2025-04-15', 'Visok', 85),
-(3, 8, 'Testiranje na kvantnom simulatoru', 'Validacija algoritma na IBM Quantum simulatoru', 7, '2025-05-30', 'Visok', 45),
+(3, 7, 'Implementacija Shor algoritma', 'Kvantni algoritam za faktorizaciju velikih brojeva', 5, '2025-04-15', 'Visok', 85, 'IBM Quantum access, Qiskit, 2 kvantna fizičara'),
+(3, 8, 'Testiranje na kvantnom simulatoru', 'Validacija algoritma na IBM Quantum simulatoru', 7, '2025-05-30', 'Visok', 45, 'Cloud computing resursi, IBM Quantum lab subscription'),
 
 -- Blockchain zadaci
-(4, 2, 'Smart contract za identitete', 'Ethereum smart contract za decentralizovane ID', 6, '2025-04-20', 'Visok', 75),
-(4, 3, 'Web3 frontend aplikacija', 'React aplikacija za upravljanje identitetima', 8, '2025-06-15', 'Srednji', 50);
+(4, 2, 'Smart contract za identitete', 'Ethereum smart contract za decentralizovane ID', 6, '2025-04-20', 'Visok', 75, 'Solidity, Hardhat framework, Testnet ETH, 2 blockchain dev'),
+(4, 3, 'Web3 frontend aplikacija', 'React aplikacija za upravljanje identitetima', 8, '2025-06-15', 'Srednji', 50, 'React, Web3.js, MetaMask integration, 2 frontend developera');
 
 -- 5. KREIRANJE FOLDERA
 INSERT INTO Folderi (naziv_foldera, roditelj_folder_id, vlasnik_id) VALUES 

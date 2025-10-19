@@ -84,6 +84,7 @@ CREATE TABLE Zadaci (
     rok DATE,
     prioritet VARCHAR(50), -- e.g., 'Nizak', 'Srednji', 'Visok'
     progres INT DEFAULT 0,
+    resursi TEXT, -- Resources needed for the task
     kreiran_datuma TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (projekat_id) REFERENCES Projekti(projekat_id) ON DELETE CASCADE,
     FOREIGN KEY (faza_id) REFERENCES Faze(faza_id),

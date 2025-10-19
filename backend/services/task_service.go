@@ -22,7 +22,7 @@ func NewTaskService(db *sql.DB) *TaskService {
 func (s *TaskService) GetTasksByProject(projectID int) ([]models.Zadaci, error) {
 	query := `
 		SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 		FROM zadaci z
@@ -45,7 +45,7 @@ func (s *TaskService) GetTasksByProject(projectID int) ([]models.Zadaci, error) 
 		err := rows.Scan(
 			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
 			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
-			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.Progres, &task.Resursi, &task.KreiranDatuma, &task.NazivProjekta,
 			&task.NazivFaze, &task.DodjeljenKorisniku,
 		)
 		if err != nil {
@@ -60,7 +60,7 @@ func (s *TaskService) GetTasksByProject(projectID int) ([]models.Zadaci, error) 
 func (s *TaskService) GetTasksByUser(userID int) ([]models.Zadaci, error) {
 	query := `
 		SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 		FROM zadaci z
@@ -83,7 +83,7 @@ func (s *TaskService) GetTasksByUser(userID int) ([]models.Zadaci, error) {
 		err := rows.Scan(
 			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
 			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
-			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.Progres, &task.Resursi, &task.KreiranDatuma, &task.NazivProjekta,
 			&task.NazivFaze, &task.DodjeljenKorisniku,
 		)
 		if err != nil {
@@ -99,7 +99,7 @@ func (s *TaskService) GetTaskByID(taskID int) (models.Zadaci, error) {
 	var task models.Zadaci
 	query := `
 		SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 		FROM zadaci z
@@ -112,7 +112,7 @@ func (s *TaskService) GetTaskByID(taskID int) (models.Zadaci, error) {
 	err := s.db.QueryRow(query, taskID).Scan(
 		&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
 		&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
-		&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+		&task.Progres, &task.Resursi, &task.KreiranDatuma, &task.NazivProjekta,
 		&task.NazivFaze, &task.DodjeljenKorisniku,
 	)
 
@@ -120,30 +120,37 @@ func (s *TaskService) GetTaskByID(taskID int) (models.Zadaci, error) {
 }
 
 func (s *TaskService) CreateTask(req models.CreateTaskRequest) error {
-	// Get first phase of project workflow
+	// Determine which phase to use
 	var faseID int
-	phaseQuery := `
-		SELECT f.faza_id 
-		FROM faze f
-		JOIN projekti p ON f.radni_tok_id = p.radni_tok_id
-		WHERE p.projekat_id = $1
-		ORDER BY f.redosled ASC
-		LIMIT 1
-	`
-	err := s.db.QueryRow(phaseQuery, req.ProjekatID).Scan(&faseID)
-	if err != nil {
-		// If no workflow, use default phase 1
-		faseID = 1
+	
+	// If FazaID is provided, use it
+	if req.FazaID != nil {
+		faseID = *req.FazaID
+	} else {
+		// Otherwise, get first phase of project workflow
+		phaseQuery := `
+			SELECT f.faza_id 
+			FROM faze f
+			JOIN projekti p ON f.radni_tok_id = p.radni_tok_id
+			WHERE p.projekat_id = $1
+			ORDER BY f.redosled ASC
+			LIMIT 1
+		`
+		err := s.db.QueryRow(phaseQuery, req.ProjekatID).Scan(&faseID)
+		if err != nil {
+			// If no workflow, use default phase 1
+			faseID = 1
+		}
 	}
 
 	query := `
 		INSERT INTO zadaci (projekat_id, faza_id, naziv_zadatka, opis, 
-		                   dodeljen_korisniku_id, rok, prioritet)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		                   dodeljen_korisniku_id, rok, prioritet, resursi)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err = s.db.Exec(query, req.ProjekatID, faseID, req.NazivZadatka,
-		req.Opis, req.DodjeljenKorisnikuID, req.Rok, req.Prioritet)
+	_, err := s.db.Exec(query, req.ProjekatID, faseID, req.NazivZadatka,
+		req.Opis, req.DodjeljenKorisnikuID, req.Rok, req.Prioritet, req.Resursi)
 
 	return err
 }
@@ -193,6 +200,12 @@ func (s *TaskService) UpdateTask(taskID int, req models.UpdateTaskRequest) error
 	if req.FazaID != nil {
 		setParts = append(setParts, fmt.Sprintf("faza_id = $%d", argCount))
 		args = append(args, *req.FazaID)
+		argCount++
+	}
+
+	if req.Resursi != nil {
+		setParts = append(setParts, fmt.Sprintf("resursi = $%d", argCount))
+		args = append(args, *req.Resursi)
 		argCount++
 	}
 
@@ -284,7 +297,7 @@ func (s *TaskService) MoveTaskToPhase(taskID, newPhaseID int) error {
 func (s *TaskService) GetTasksByPhase(phaseID int) ([]models.Zadaci, error) {
 	query := `
 		SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+		       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 		       p.naziv_projekta, f.naziv_faze,
 		       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 		FROM zadaci z
@@ -307,7 +320,7 @@ func (s *TaskService) GetTasksByPhase(phaseID int) ([]models.Zadaci, error) {
 		err := rows.Scan(
 			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
 			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
-			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.Progres, &task.Resursi, &task.KreiranDatuma, &task.NazivProjekta,
 			&task.NazivFaze, &task.DodjeljenKorisniku,
 		)
 		if err != nil {
@@ -430,7 +443,7 @@ func (s *TaskService) GetOverdueTasks(projectID *int) ([]models.Zadaci, error) {
 	if projectID != nil {
 		query = `
 			SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 			       p.naziv_projekta, f.naziv_faze,
 			       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 			FROM zadaci z
@@ -444,7 +457,7 @@ func (s *TaskService) GetOverdueTasks(projectID *int) ([]models.Zadaci, error) {
 	} else {
 		query = `
 			SELECT z.zadatak_id, z.projekat_id, z.faza_id, z.naziv_zadatka, z.opis,
-			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.kreiran_datuma,
+			       z.dodeljen_korisniku_id, z.rok, z.prioritet, z.progres, z.resursi, z.kreiran_datuma,
 			       p.naziv_projekta, f.naziv_faze,
 			       COALESCE(k.korisnicko_ime, '') as dodeljen_korisniku
 			FROM zadaci z
@@ -468,7 +481,7 @@ func (s *TaskService) GetOverdueTasks(projectID *int) ([]models.Zadaci, error) {
 		err := rows.Scan(
 			&task.ZadatakID, &task.ProjekatID, &task.FazaID, &task.NazivZadatka,
 			&task.Opis, &task.DodjeljenKorisnikuID, &task.Rok, &task.Prioritet,
-			&task.Progres, &task.KreiranDatuma, &task.NazivProjekta,
+			&task.Progres, &task.Resursi, &task.KreiranDatuma, &task.NazivProjekta,
 			&task.NazivFaze, &task.DodjeljenKorisniku,
 		)
 		if err != nil {

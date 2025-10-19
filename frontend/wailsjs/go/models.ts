@@ -76,6 +76,8 @@ export namespace models {
 	    // Go type: time
 	    rok?: any;
 	    prioritet: string;
+	    faza_id?: number;
+	    resursi: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new CreateTaskRequest(source);
@@ -89,6 +91,8 @@ export namespace models {
 	        this.dodeljen_korisniku_id = source["dodeljen_korisniku_id"];
 	        this.rok = this.convertValues(source["rok"], null);
 	        this.prioritet = source["prioritet"];
+	        this.faza_id = source["faza_id"];
+	        this.resursi = source["resursi"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -461,6 +465,7 @@ export namespace models {
 	    prioritet?: string;
 	    progres?: number;
 	    faza_id?: number;
+	    resursi?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UpdateTaskRequest(source);
@@ -475,6 +480,7 @@ export namespace models {
 	        this.prioritet = source["prioritet"];
 	        this.progres = source["progres"];
 	        this.faza_id = source["faza_id"];
+	        this.resursi = source["resursi"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -575,6 +581,7 @@ export namespace models {
 	    rok?: any;
 	    prioritet?: string;
 	    progres: number;
+	    resursi?: string;
 	    // Go type: time
 	    kreiran_datuma: any;
 	    naziv_projekta?: string;
@@ -596,6 +603,7 @@ export namespace models {
 	        this.rok = this.convertValues(source["rok"], null);
 	        this.prioritet = source["prioritet"];
 	        this.progres = source["progres"];
+	        this.resursi = source["resursi"];
 	        this.kreiran_datuma = this.convertValues(source["kreiran_datuma"], null);
 	        this.naziv_projekta = source["naziv_projekta"];
 	        this.naziv_faze = source["naziv_faze"];
