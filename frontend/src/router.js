@@ -6,9 +6,11 @@ import Login from './views/Login.vue'
 import Dashboard from './views/Dashboard.vue'
 import Projects from './views/Projects.vue'
 import DocumentManagement from './views/documents/DocumentManagement.vue'
+import ProjectDocuments from './views/documents/ProjectDocuments.vue'
 import DocumentAdd from './views/documents/DocumentAdd.vue'
 import DocumentPreview from './views/documents/DocumentPreview.vue'
 import DocumentAnalytics from './views/documents/DocumentAnalytics.vue'
+import DocumentFullPreview from './views/documents/DocumentFullPreview.vue'
 import Tasks from './views/Tasks.vue'
 import Users from './views/Users.vue'
 
@@ -36,6 +38,13 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/projects/:id/documents',
+    name: 'ProjectDocuments',
+    component: ProjectDocuments,
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
     path: '/documents',
     name: 'DocumentManagement',
     component: DocumentManagement,
@@ -51,6 +60,13 @@ const routes = [
     path: '/documents/preview/:id',
     name: 'DocumentPreview',
     component: DocumentPreview,
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
+    path: '/documents/full-preview/:id',
+    name: 'DocumentFullPreview',
+    component: DocumentFullPreview,
     meta: { requiresAuth: true },
     props: true
   },

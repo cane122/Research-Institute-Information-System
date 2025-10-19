@@ -21,7 +21,7 @@ func NewWorkflowService(db *sql.DB) *WorkflowService {
 func (s *WorkflowService) GetAllWorkflows() ([]models.RadniTokovi, error) {
 	query := `
 		SELECT radni_tok_id, naziv, tip_toka, opis, da_li_je_sablon
-		FROM radni_tokovi
+		FROM radnitokovi
 		ORDER BY naziv
 	`
 
@@ -45,6 +45,16 @@ func (s *WorkflowService) GetAllWorkflows() ([]models.RadniTokovi, error) {
 	}
 
 	return workflows, nil
+}
+
+func (s *WorkflowService) GetWorkflowByID(id int) (*models.RadniTokovi, error) {
+	var wf models.RadniTokovi
+	err := s.db.QueryRow(`SELECT radni_tok_id, naziv, tip_toka, opis, da_li_je_sablon FROM radnitokovi WHERE radni_tok_id = $1`, id).
+		Scan(&wf.RadniTokID, &wf.Naziv, &wf.TipToka, &wf.Opis, &wf.DaLiJeSablon)
+	if err != nil {
+		return nil, err
+	}
+	return &wf, nil
 }
 
 func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, error) {
@@ -78,7 +88,7 @@ func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, erro
 
 func (s *WorkflowService) CreateWorkflow(workflow models.RadniTokovi) error {
 	query := `
-		INSERT INTO radni_tokovi (naziv, tip_toka, opis, da_li_je_sablon)
+		INSERT INTO radnitokovi (naziv, tip_toka, opis, da_li_je_sablon)
 		VALUES ($1, $2, $3, $4)
 	`
 
@@ -95,5 +105,26 @@ func (s *WorkflowService) CreatePhase(phase models.Faze) error {
 	`
 
 	_, err := s.db.Exec(query, phase.RadniTokID, phase.NazivFaze, phase.Redosled)
+	return err
+}
+
+func (s *WorkflowService) UpdateWorkflow(wf models.RadniTokovi) error {
+	_, err := s.db.Exec(`UPDATE radnitokovi SET naziv = $1, tip_toka = $2, opis = $3, da_li_je_sablon = $4 WHERE radni_tok_id = $5`,
+		wf.Naziv, wf.TipToka, wf.Opis, wf.DaLiJeSablon, wf.RadniTokID)
+	return err
+}
+
+func (s *WorkflowService) DeleteWorkflow(id int) error {
+	_, err := s.db.Exec(`DELETE FROM radnitokovi WHERE radni_tok_id = $1`, id)
+	return err
+}
+
+func (s *WorkflowService) UpdatePhase(phase models.Faze) error {
+	_, err := s.db.Exec(`UPDATE faze SET naziv_faze = $1, redosled = $2 WHERE faza_id = $3`, phase.NazivFaze, phase.Redosled, phase.FazaID)
+	return err
+}
+
+func (s *WorkflowService) DeletePhase(phaseID int) error {
+	_, err := s.db.Exec(`DELETE FROM faze WHERE faza_id = $1`, phaseID)
 	return err
 }

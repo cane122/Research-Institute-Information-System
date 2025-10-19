@@ -136,6 +136,65 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class Faze {
+	    faza_id: number;
+	    radni_tok_id: number;
+	    naziv_faze: string;
+	    redosled: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Faze(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.faza_id = source["faza_id"];
+	        this.radni_tok_id = source["radni_tok_id"];
+	        this.naziv_faze = source["naziv_faze"];
+	        this.redosled = source["redosled"];
+	    }
+	}
+	export class IstorijaFazaDokumenta {
+	    istorija_id: number;
+	    dokument_id: number;
+	    prethodna_faza_id?: number;
+	    nova_faza_id: number;
+	    korisnik_id: number;
+	    // Go type: time
+	    datum_promene: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new IstorijaFazaDokumenta(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.istorija_id = source["istorija_id"];
+	        this.dokument_id = source["dokument_id"];
+	        this.prethodna_faza_id = source["prethodna_faza_id"];
+	        this.nova_faza_id = source["nova_faza_id"];
+	        this.korisnik_id = source["korisnik_id"];
+	        this.datum_promene = this.convertValues(source["datum_promene"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Korisnici {
 	    korisnik_id: number;
 	    korisnicko_ime: string;
@@ -196,6 +255,26 @@ export namespace models {
 	        this.rukovodilac_ime = source["rukovodilac_ime"];
 	        this.broj_zadataka = source["broj_zadataka"];
 	        this.broj_clanova = source["broj_clanova"];
+	    }
+	}
+	export class RadniTokovi {
+	    radni_tok_id: number;
+	    naziv: string;
+	    tip_toka: string;
+	    opis?: string;
+	    da_li_je_sablon: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RadniTokovi(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.radni_tok_id = source["radni_tok_id"];
+	        this.naziv = source["naziv"];
+	        this.tip_toka = source["tip_toka"];
+	        this.opis = source["opis"];
+	        this.da_li_je_sablon = source["da_li_je_sablon"];
 	    }
 	}
 	export class SkornjeAktivnosti {
@@ -286,6 +365,20 @@ export namespace models {
 	        this.naziv_taga = source["naziv_taga"];
 	    }
 	}
+	export class Uloge {
+	    uloga_id: number;
+	    naziv_uloge: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Uloge(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uloga_id = source["uloga_id"];
+	        this.naziv_uloge = source["naziv_uloge"];
+	    }
+	}
 	export class UploadDocumentRequest {
 	    naziv_dokumenta: string;
 	    projekat_id?: number;
@@ -335,6 +428,49 @@ export namespace models {
 	        this.velicina_fajla_mb = source["velicina_fajla_mb"];
 	        this.postavio_korisnik_id = source["postavio_korisnik_id"];
 	        this.datuma_postavke = this.convertValues(source["datuma_postavke"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ZahteviPromeneFaze {
+	    zahtev_id: number;
+	    zadatak_id: number;
+	    podnosilac_zahteva_id: number;
+	    zahtevana_faza_id: number;
+	    status: string;
+	    komentar?: string;
+	    // Go type: time
+	    datum_kreiranja: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new ZahteviPromeneFaze(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.zahtev_id = source["zahtev_id"];
+	        this.zadatak_id = source["zadatak_id"];
+	        this.podnosilac_zahteva_id = source["podnosilac_zahteva_id"];
+	        this.zahtevana_faza_id = source["zahtevana_faza_id"];
+	        this.status = source["status"];
+	        this.komentar = source["komentar"];
+	        this.datum_kreiranja = this.convertValues(source["datum_kreiranja"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

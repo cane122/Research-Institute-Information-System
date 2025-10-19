@@ -3,17 +3,45 @@
 import {models} from '../models';
 import {services} from '../models';
 
+export function AddDocumentPhaseHistory(arg1:models.IstorijaFazaDokumenta):Promise<number>;
+
+export function AddDocumentVersion(arg1:models.VerzijeDokumenata):Promise<number>;
+
 export function AskDocumentQuestion(arg1:number,arg2:string):Promise<string>;
 
 export function CheckUserPermission(arg1:number,arg2:string):Promise<boolean>;
 
 export function CompleteFirstTimeSetup(arg1:string,arg2:string):Promise<Record<string, any>>;
 
+export function CreatePhase(arg1:models.Faze):Promise<void>;
+
+export function CreatePhaseChangeRequest(arg1:models.ZahteviPromeneFaze):Promise<number>;
+
 export function CreateProject(arg1:models.Projekti):Promise<void>;
+
+export function CreateRole(arg1:string):Promise<number>;
+
+export function CreateTag(arg1:string):Promise<number>;
 
 export function CreateUser(arg1:models.Korisnici,arg2:string):Promise<void>;
 
+export function CreateWorkflow(arg1:models.RadniTokovi):Promise<void>;
+
 export function DeleteDocument(arg1:number):Promise<void>;
+
+export function DeleteDocumentPhaseHistory(arg1:number):Promise<void>;
+
+export function DeleteDocumentVersion(arg1:number,arg2:number):Promise<void>;
+
+export function DeletePhase(arg1:number):Promise<void>;
+
+export function DeletePhaseChangeRequest(arg1:number):Promise<void>;
+
+export function DeleteRole(arg1:number):Promise<void>;
+
+export function DeleteTag(arg1:number):Promise<void>;
+
+export function DeleteWorkflow(arg1:number):Promise<void>;
 
 export function GenerateDescriptionFromText(arg1:string,arg2:string,arg3:string):Promise<string>;
 
@@ -31,11 +59,17 @@ export function GetAllTags():Promise<Array<models.Tagovi>>;
 
 export function GetAllUsers():Promise<Array<models.Korisnici>>;
 
+export function GetAllWorkflows():Promise<Array<models.RadniTokovi>>;
+
 export function GetCurrentUser():Promise<models.Korisnici>;
 
 export function GetDocumentByID(arg1:number):Promise<models.Dokumenti>;
 
 export function GetDocumentPermissions(arg1:number):Promise<Array<models.DocumentPermissionResponse>>;
+
+export function GetDocumentPhaseHistory(arg1:number):Promise<Array<models.IstorijaFazaDokumenta>>;
+
+export function GetDocumentPhases(arg1:number):Promise<Array<models.Faze>>;
 
 export function GetDocumentStatistics():Promise<models.StatistikaDokumenata>;
 
@@ -43,15 +77,29 @@ export function GetDocumentTags(arg1:number):Promise<Array<models.Tagovi>>;
 
 export function GetDocumentTrends(arg1:number):Promise<Array<Record<string, any>>>;
 
+export function GetDocumentUsers(arg1:number):Promise<Array<models.Korisnici>>;
+
 export function GetDocumentVersions(arg1:number):Promise<Array<models.VerzijeDokumenata>>;
 
 export function GetDocumentsByType():Promise<Record<string, number>>;
+
+export function GetProjectDocuments(arg1:number):Promise<Array<models.Dokumenti>>;
+
+export function GetProjectMembers(arg1:number):Promise<Array<models.Korisnici>>;
 
 export function GetRecentActivity(arg1:number):Promise<Array<models.SkornjeAktivnosti>>;
 
 export function GetTopContributors(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function GetUserProjects():Promise<Array<models.Projekti>>;
+
+export function GetWorkflowByID(arg1:number):Promise<models.RadniTokovi>;
+
+export function GetWorkflowPhases(arg1:number):Promise<Array<models.Faze>>;
+
+export function ListPhaseChangeRequests(arg1:number):Promise<Array<models.ZahteviPromeneFaze>>;
+
+export function ListRoles():Promise<Array<models.Uloge>>;
 
 export function LogActivity(arg1:models.ActivityLogRequest):Promise<void>;
 
@@ -68,5 +116,17 @@ export function SetOpenAIKey(arg1:string):Promise<void>;
 export function TestConnection():Promise<Record<string, any>>;
 
 export function UpdateDocument(arg1:number,arg2:models.UploadDocumentRequest):Promise<void>;
+
+export function UpdatePhase(arg1:models.Faze):Promise<void>;
+
+export function UpdatePhaseChangeRequestStatus(arg1:number,arg2:string,arg3:any):Promise<void>;
+
+export function UpdateProject(arg1:models.Projekti):Promise<void>;
+
+export function UpdateRole(arg1:number,arg2:string):Promise<void>;
+
+export function UpdateTag(arg1:number,arg2:string):Promise<void>;
+
+export function UpdateWorkflow(arg1:models.RadniTokovi):Promise<void>;
 
 export function UploadDocument(arg1:models.UploadDocumentRequest,arg2:Array<number>,arg3:string):Promise<number>;

@@ -234,8 +234,8 @@ func (s *TaskService) DeleteTask(taskID int) error {
 func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, error) {
 	query := `
 		SELECT kz.komentar_id, kz.zadatak_id, kz.korisnik_id, kz.tekst_komentara,
-		       kz.datuma_kreiranja, k.korisnicko_ime as ime_korisnika
-		FROM komentari_zadataka kz
+			   kz.datuma_kreiranja, k.korisnicko_ime as ime_korisnika
+		FROM komentarizadataka kz
 		JOIN korisnici k ON kz.korisnik_id = k.korisnik_id
 		WHERE kz.zadatak_id = $1
 		ORDER BY kz.datuma_kreiranja DESC
@@ -265,7 +265,7 @@ func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, e
 
 func (s *TaskService) AddTaskComment(taskID, userID int, comment string) error {
 	query := `
-		INSERT INTO komentari_zadataka (zadatak_id, korisnik_id, tekst_komentara)
+		INSERT INTO komentarizadataka (zadatak_id, korisnik_id, tekst_komentara)
 		VALUES ($1, $2, $3)
 	`
 

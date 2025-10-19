@@ -110,6 +110,12 @@
               </div>
             </div>
           </div>
+
+          <div class="project-footer">
+            <button class="btn btn-secondary" @click.stop="openDocumentation(project)">
+              📚 Dokumentacija
+            </button>
+          </div>
           
           <div class="project-team">
             <div class="team-avatars">
@@ -218,6 +224,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
 
 // Reactive data
@@ -239,58 +246,10 @@ const projectForm = ref({
   deadline: ''
 })
 
-// Mock data
-const projects = ref([
-  {
-    id: 1,
-    name: 'Web Portal Refactoring',
-    description: 'Modernizacija postojećeg web portala institucije',
-    progress: 75,
-    status: 'active',
-    leader: 'Marko Petrović',
-    leaderId: 1,
-    deadline: '2024-12-31',
-    created: '2024-01-15',
-    updated: '2024-09-01',
-    team: [
-      { id: 1, name: 'Marko Petrović' },
-      { id: 2, name: 'Ana Jovanović' },
-      { id: 3, name: 'Stefan Nikolić' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'AI Analitika Modula',
-    description: 'Implementacija AI za analizu istraživačkih podataka',
-    progress: 45,
-    status: 'active',
-    leader: 'Ana Jovanović',
-    leaderId: 2,
-    deadline: '2025-03-15',
-    created: '2024-03-01',
-    updated: '2024-08-20',
-    team: [
-      { id: 2, name: 'Ana Jovanović' },
-      { id: 4, name: 'Milica Stojković' }
-    ]
-  },
-  {
-    id: 3,
-    name: 'Mobile Aplikacija',
-    description: 'Razvoj mobilne aplikacije za iOS i Android',
-    progress: 20,
-    status: 'on-hold',
-    leader: 'Stefan Nikolić',
-    leaderId: 3,
-    deadline: '2025-06-01',
-    created: '2024-05-10',
-    updated: '2024-07-15',
-    team: [
-      { id: 3, name: 'Stefan Nikolić' },
-      { id: 5, name: 'Jovana Mitrović' }
-    ]
-  }
-])
+import { fetchUserProjects, createProject } from '../services/projectService.js'
+const projects = ref([])
+
+const router = useRouter()
 
 const users = ref([
   { id: 1, name: 'Marko Petrović' },
@@ -349,7 +308,10 @@ function getStatusText(status) {
 }
 
 function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString('sr-RS')
+  if (!dateString) return '-'
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('sr-RS')
 }
 
 function selectProject(project) {
@@ -379,19 +341,20 @@ function deleteProject(project) {
   }
 }
 
+function openDocumentation(project) {
+  router.push(`/projects/${project.id}/documents`)
+}
+
 function saveProject() {
   if (showCreateModal.value) {
-    // Create new project
-    const newProject = {
-      id: Date.now(),
-      ...projectForm.value,
-      progress: 0,
-      created: new Date().toISOString().split('T')[0],
-      updated: new Date().toISOString().split('T')[0],
-      leader: users.value.find(u => u.id === projectForm.value.leaderId)?.name || '',
-      team: [users.value.find(u => u.id === projectForm.value.leaderId)].filter(Boolean)
-    }
-    projects.value.push(newProject)
+    // Create new project via backend
+    createProject(projectForm.value.name, projectForm.value.description, projectForm.value.deadline)
+      .then(async () => {
+        const data = await fetchUserProjects()
+        projects.value = data
+        closeModals()
+      })
+      .catch(err => alert('Greška pri kreiranju projekta: ' + err))
   } else if (showEditModal.value && selectedProject.value) {
     // Update existing project
     const index = projects.value.findIndex(p => p.id === selectedProject.value.id)
@@ -405,7 +368,7 @@ function saveProject() {
     }
   }
   
-  closeModals()
+  if (!showCreateModal.value) closeModals()
 }
 
 function closeModals() {
@@ -422,8 +385,12 @@ function closeModals() {
 }
 
 // Lifecycle
-onMounted(() => {
-  // Load projects data
-  console.log('Projects loaded')
+onMounted(async () => {
+  try {
+    const data = await fetchUserProjects()
+    projects.value = data
+  } catch (e) {
+    console.error('Neuspešno učitavanje projekata:', e)
+  }
 })
 </script>
