@@ -143,6 +143,9 @@
             <button class="btn btn-secondary" @click.stop="openDocumentation(project)">
               📚 Dokumentacija
             </button>
+            <button class="btn btn-secondary" @click.stop="openAnalytics(project)">
+              📊 Analitika
+            </button>
           </div>
           
           <div class="project-team">
@@ -943,6 +946,10 @@ function openDocumentation(project) {
   router.push(`/projects/${project.id}/documents`)
 }
 
+function openAnalytics(project) {
+  router.push(`/projects/${project.id}/analytics`)
+}
+
 async function saveProject() {
   try {
     loading.value = true
@@ -1339,10 +1346,12 @@ onMounted(async () => {
 .project-footer {
   padding-top: 0.5rem;
   border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .project-footer .btn {
-  width: 100%;
+  flex: 1;
   justify-content: center;
 }
 

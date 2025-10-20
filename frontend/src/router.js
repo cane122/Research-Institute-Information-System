@@ -5,6 +5,7 @@ import { useAuthStore } from './stores/auth'
 import Login from './views/Login.vue'
 import Dashboard from './views/Dashboard.vue'
 import Projects from './views/Projects.vue'
+import Analytics from './views/Analytics.vue'
 import DocumentManagement from './views/documents/DocumentManagement.vue'
 import ProjectDocuments from './views/documents/ProjectDocuments.vue'
 import DocumentAdd from './views/documents/DocumentAdd.vue'
@@ -42,6 +43,13 @@ const routes = [
     path: '/projects/:id/documents',
     name: 'ProjectDocuments',
     component: ProjectDocuments,
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
+    path: '/projects/:id/analytics',
+    name: 'Analytics',
+    component: Analytics,
     meta: { requiresAuth: true },
     props: true
   },
