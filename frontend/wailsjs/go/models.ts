@@ -314,6 +314,38 @@ export namespace models {
 	        this.naziv_uloge = source["naziv_uloge"];
 	    }
 	}
+	export class ProcenaUslova {
+	    procena_id: number;
+	    zadatak_id: number;
+	    uslov_id: number;
+	    ispunjen: boolean;
+	    napomena?: string;
+	    promenio_korisnik_id?: number;
+	    datum_procene: string;
+	    opis_uslova?: string;
+	    kriterijum_uslova?: string;
+	    naziv_zadatka?: string;
+	    ime_korisnika?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProcenaUslova(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.procena_id = source["procena_id"];
+	        this.zadatak_id = source["zadatak_id"];
+	        this.uslov_id = source["uslov_id"];
+	        this.ispunjen = source["ispunjen"];
+	        this.napomena = source["napomena"];
+	        this.promenio_korisnik_id = source["promenio_korisnik_id"];
+	        this.datum_procene = source["datum_procene"];
+	        this.opis_uslova = source["opis_uslova"];
+	        this.kriterijum_uslova = source["kriterijum_uslova"];
+	        this.naziv_zadatka = source["naziv_zadatka"];
+	        this.ime_korisnika = source["ime_korisnika"];
+	    }
+	}
 	export class Projekti {
 	    projekat_id: number;
 	    naziv_projekta: string;
@@ -525,6 +557,28 @@ export namespace models {
 	        this.jezik_dokumenta = source["jezik_dokumenta"];
 	        this.tagovi = source["tagovi"];
 	        this.kljucne_reci = source["kljucne_reci"];
+	    }
+	}
+	export class Uslovi {
+	    uslov_id: number;
+	    faza_id: number;
+	    opis: string;
+	    kriterijum: string;
+	    kreiran_datuma: string;
+	    naziv_faze?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Uslovi(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.uslov_id = source["uslov_id"];
+	        this.faza_id = source["faza_id"];
+	        this.opis = source["opis"];
+	        this.kriterijum = source["kriterijum"];
+	        this.kreiran_datuma = source["kreiran_datuma"];
+	        this.naziv_faze = source["naziv_faze"];
 	    }
 	}
 	export class VerzijeDokumenata {

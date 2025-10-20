@@ -8,7 +8,11 @@ import {
   DeleteTask,
   MoveTaskToPhase,
   GetWorkflowPhases,
-  GetProjectMembers
+  GetProjectMembers,
+  GetConditionsByPhase,
+  GetConditionAssessmentsByTask,
+  CreateOrUpdateConditionAssessment,
+  GetConditionFulfillmentStatus
 } from '../../wailsjs/go/main/App.js'
 
 /**
@@ -243,5 +247,86 @@ export async function deleteTask(taskId) {
   } catch (error) {
     console.error('Error deleting task:', error)
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Fetches conditions for a specific phase
+ */
+export async function fetchConditionsByPhase(phaseId) {
+  try {
+    if (!phaseId) return []
+    const conditions = await GetConditionsByPhase(phaseId)
+    return (conditions || []).map(c => ({
+      id: c.uslov_id,
+      phaseId: c.faza_id,
+      description: c.opis,
+      criteria: c.kriterijum,
+      phaseName: c.naziv_faze,
+      created: c.kreiran_datuma
+    }))
+  } catch (error) {
+    console.error('Error fetching conditions:', error)
+    return []
+  }
+}
+
+/**
+ * Fetches condition assessments for a specific task
+ */
+export async function fetchConditionAssessmentsByTask(taskId) {
+  try {
+    if (!taskId) return []
+    const assessments = await GetConditionAssessmentsByTask(taskId)
+    return (assessments || []).map(a => ({
+      id: a.procena_id,
+      taskId: a.zadatak_id,
+      conditionId: a.uslov_id,
+      fulfilled: a.ispunjen,
+      note: a.napomena,
+      evaluatedBy: a.promenio_korisnik_id,
+      evaluatedAt: a.datum_procene,
+      conditionDescription: a.opis_uslova,
+      conditionCriteria: a.kriterijum_uslova,
+      taskName: a.naziv_zadatka,
+      evaluatorName: a.ime_korisnika
+    }))
+  } catch (error) {
+    console.error('Error fetching condition assessments:', error)
+    return []
+  }
+}
+
+/**
+ * Creates or updates a condition assessment
+ */
+export async function updateConditionAssessment(taskId, conditionId, fulfilled, note = '') {
+  try {
+    const assessment = {
+      zadatak_id: taskId,
+      uslov_id: conditionId,
+      ispunjen: fulfilled,
+      napomena: note
+    }
+    
+    await CreateOrUpdateConditionAssessment(assessment)
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating condition assessment:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Fetches condition fulfillment status for a task
+ */
+export async function fetchConditionFulfillmentStatus(taskId) {
+  try {
+    if (!taskId) return null
+    const status = await GetConditionFulfillmentStatus(taskId)
+    return status
+  } catch (error) {
+    console.error('Error fetching condition fulfillment status:', error)
+    return null
   }
 }

@@ -35,6 +35,7 @@ type App struct {
 	projectService   *services.ProjectService
 	taskService      *services.TaskService
 	workflowService  *services.WorkflowService
+	conditionService *services.ConditionService
 	userRepo         *repositories.UserRepository
 	projectRepo      *repositories.ProjectRepository
 	currentUser      *models.User
@@ -189,6 +190,7 @@ func (a *App) initializeDatabase() {
 	a.projectService = services.NewProjectService(db)
 	a.taskService = services.NewTaskService(db)
 	a.workflowService = services.NewWorkflowService(db)
+	a.conditionService = services.NewConditionService(db)
 
 	// Check if OpenAI API key is configured
 	apiKey := os.Getenv("OPENAI_API_KEY")
@@ -1553,6 +1555,119 @@ func (a *App) CloneWorkflow(sourceWorkflowID int, newName string) (int, error) {
 	}
 
 	return a.workflowService.CloneWorkflow(sourceWorkflowID, newName)
+}
+
+// =============================================================================
+// Condition Management Methods
+// =============================================================================
+
+// GetConditionsByPhase retrieves all conditions for a specific phase
+func (a *App) GetConditionsByPhase(phaseID int) ([]models.Uslovi, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.conditionService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.GetConditionsByPhase(phaseID)
+}
+
+// CreateCondition creates a new condition for a phase
+func (a *App) CreateCondition(condition models.Uslovi) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za kreiranje uslova")
+	}
+
+	if a.conditionService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.CreateCondition(&condition)
+}
+
+// UpdateCondition updates an existing condition
+func (a *App) UpdateCondition(condition models.Uslovi) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za izmenu uslova")
+	}
+
+	if a.conditionService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.UpdateCondition(&condition)
+}
+
+// DeleteCondition deletes a condition
+func (a *App) DeleteCondition(conditionID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return errors.New("nemate dozvolu za brisanje uslova")
+	}
+
+	if a.conditionService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.DeleteCondition(conditionID)
+}
+
+// GetConditionAssessmentsByTask retrieves all condition assessments for a task
+func (a *App) GetConditionAssessmentsByTask(taskID int) ([]models.ProcenaUslova, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.conditionService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.GetConditionAssessmentsByTask(taskID)
+}
+
+// CreateOrUpdateConditionAssessment creates or updates a condition assessment
+func (a *App) CreateOrUpdateConditionAssessment(assessment models.ProcenaUslova) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.conditionService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Set the user who is making the assessment
+	if a.currentUser != nil {
+		userID := a.currentUser.KorisnikID
+		assessment.PromenioKorisnikID = &userID
+	}
+
+	return a.conditionService.CreateOrUpdateConditionAssessment(&assessment)
+}
+
+// GetConditionFulfillmentStatus returns fulfillment status for a task
+func (a *App) GetConditionFulfillmentStatus(taskID int) (map[string]interface{}, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.conditionService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.conditionService.GetConditionFulfillmentStatus(taskID)
 }
 
 func main() {

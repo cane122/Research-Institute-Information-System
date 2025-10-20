@@ -116,6 +116,31 @@ CREATE TABLE ZahteviPromeneFaze (
     FOREIGN KEY (zahtevana_faza_id) REFERENCES Faze(faza_id)
 );
 
+-- Table for defining conditions that must be met for phase transitions
+CREATE TABLE Uslovi (
+    uslov_id SERIAL PRIMARY KEY,
+    faza_id INT NOT NULL,
+    opis TEXT NOT NULL, -- Description of the condition (e.g., "Završiti dokumentaciju")
+    kriterijum TEXT NOT NULL, -- Criteria that must be met
+    kreiran_datuma TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (faza_id) REFERENCES Faze(faza_id) ON DELETE CASCADE
+);
+
+-- Table for tracking condition fulfillment for specific tasks
+CREATE TABLE ProcenaUslova (
+    procena_id SERIAL PRIMARY KEY,
+    zadatak_id INT NOT NULL,
+    uslov_id INT NOT NULL,
+    ispunjen BOOLEAN DEFAULT FALSE, -- Whether the condition is fulfilled
+    napomena TEXT, -- Additional notes about fulfillment (optional)
+    promenio_korisnik_id INT, -- User who evaluated the condition
+    datum_procene TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (zadatak_id, uslov_id), -- Each condition can be evaluated once per task
+    FOREIGN KEY (zadatak_id) REFERENCES Zadaci(zadatak_id) ON DELETE CASCADE,
+    FOREIGN KEY (uslov_id) REFERENCES Uslovi(uslov_id) ON DELETE CASCADE,
+    FOREIGN KEY (promenio_korisnik_id) REFERENCES Korisnici(korisnik_id)
+);
+
 -- Module 3: Document and Metadata Management
 
 CREATE TABLE Folderi (
@@ -257,6 +282,12 @@ CREATE INDEX idx_zadaci_projekat ON Zadaci(projekat_id);
 CREATE INDEX idx_zadaci_dodeljen_korisnik ON Zadaci(dodeljen_korisniku_id);
 CREATE INDEX idx_zadaci_faza ON Zadaci(faza_id);
 CREATE INDEX idx_zadaci_rok ON Zadaci(rok);
+
+CREATE INDEX idx_uslovi_faza ON Uslovi(faza_id);
+
+CREATE INDEX idx_procena_zadatak ON ProcenaUslova(zadatak_id);
+CREATE INDEX idx_procena_uslov ON ProcenaUslova(uslov_id);
+CREATE INDEX idx_procena_ispunjen ON ProcenaUslova(ispunjen);
 
 CREATE INDEX idx_dokumenti_projekat ON Dokumenti(projekat_id);
 CREATE INDEX idx_dokumenti_kreirao ON Dokumenti(kreirao_korisnik_id);

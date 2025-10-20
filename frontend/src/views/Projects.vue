@@ -240,6 +240,14 @@
                       class="phase-item"
                     >
                       <span class="phase-name">{{ phase.naziv_faze }}</span>
+                      <button 
+                        type="button" 
+                        class="btn-conditions view-mode"
+                        @click="openConditionsModal(phase)"
+                        title="Prikaži uslove"
+                      >
+                        📋 Uslovi
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -394,13 +402,30 @@
                         class="phase-item"
                       >
                         <span class="phase-name">{{ phase.naziv_faze }}</span>
-                        <button 
-                          type="button" 
-                          class="btn-remove"
-                          @click="removePhase(index)"
-                        >
-                          Ukloni
-                        </button>
+                        <div class="phase-actions">
+                          <button 
+                            v-if="phase.faza_id"
+                            type="button" 
+                            class="btn-conditions"
+                            @click="openConditionsModal(phase)"
+                            title="Upravljaj uslovima"
+                          >
+                            📋 Uslovi
+                          </button>
+                          <button 
+                            type="button" 
+                            class="btn-remove"
+                            @click="removePhase(index)"
+                          >
+                            Ukloni
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <!-- Info message for new phases -->
+                      <div v-if="!projectForm.phases.some(p => p.faza_id)" class="info-message">
+                        <span class="info-icon">ℹ️</span>
+                        <span>Sačuvajte projekat pa ponovo otvorite za upravljanje uslovima faza</span>
                       </div>
                     </div>
                   </div>
@@ -481,6 +506,15 @@
         </div>
       </div>
     </div>
+
+    <!-- Phase Conditions Modal -->
+    <PhaseConditionsModal 
+      :show="showConditionsModal"
+      :phaseId="selectedPhase?.faza_id"
+      :phaseName="selectedPhase?.naziv_faze"
+      @close="closeConditionsModal"
+      @updated="onConditionsUpdated"
+    />
   </Layout>
 </template>
 
@@ -488,13 +522,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
+import PhaseConditionsModal from '../components/PhaseConditionsModal.vue'
 import { useAuthStore } from '../stores/auth.js'
 
 // Reactive data
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showDetailsModal = ref(false)
+const showConditionsModal = ref(false)
 const selectedProject = ref(null)
+const selectedPhase = ref(null)
 
 const filters = ref({
   status: '',
@@ -654,7 +691,7 @@ function editProjectFromDetails() {
   editProject(selectedProject.value)
 }
 
-function editProject(project) {
+async function editProject(project) {
   // Check permission before allowing edit
   if (!canManageProject(project)) {
     alert('Nemate dozvolu za uređivanje ovog projekta. Samo rukovodilac projekta može vršiti izmene.')
@@ -662,6 +699,18 @@ function editProject(project) {
   }
   
   selectedProject.value = project
+  
+  // Load phases if project has a workflow
+  let phases = []
+  if (project.workflowId) {
+    try {
+      phases = await GetWorkflowPhases(project.workflowId)
+      console.log('Loaded phases for edit:', phases)
+    } catch (err) {
+      console.error('Error loading phases for edit:', err)
+    }
+  }
+  
   projectForm.value = {
     name: project.name,
     description: project.description,
@@ -669,7 +718,7 @@ function editProject(project) {
     endDate: project.deadline || '',
     status: project.status,
     workflowId: project.workflowId || '',
-    phases: [],
+    phases: phases,
     teamMembers: project.team || [],
     resources: project.resources || ''
   }
@@ -970,6 +1019,31 @@ function closeModals() {
     resources: ''
   }
 }
+
+// Phase Conditions Modal functions
+function openConditionsModal(phase) {
+  console.log('Opening conditions modal for phase:', phase)
+  
+  // Check if phase has an ID (is saved in database)
+  if (!phase.faza_id) {
+    alert('Prvo morate sačuvati projekat pre nego što možete dodati uslove za faze.\n\nKliknite na "Kreiraj projekat" ili "Sačuvaj izmene", a zatim ponovo otvorite projekat za upravljanje uslovima.')
+    return
+  }
+  
+  selectedPhase.value = phase
+  showConditionsModal.value = true
+}
+
+function closeConditionsModal() {
+  showConditionsModal.value = false
+  selectedPhase.value = null
+}
+
+function onConditionsUpdated() {
+  console.log('Conditions updated for phase:', selectedPhase.value?.naziv_faze)
+  // Optional: Reload project data or show a success message
+}
+
 
 // Load projects from backend
 async function loadProjects() {
@@ -1642,6 +1716,23 @@ onMounted(async () => {
   margin-top: 0.5rem;
 }
 
+.info-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #1976d2;
+  margin-top: 0.5rem;
+}
+
+.info-icon {
+  font-size: 1.1rem;
+}
+
 .phase-item {
   display: flex;
   justify-content: space-between;
@@ -1656,6 +1747,40 @@ onMounted(async () => {
   font-size: 0.9rem;
   color: #333;
   font-weight: 500;
+  flex: 1;
+}
+
+.phase-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn-conditions {
+  padding: 0.35rem 0.75rem;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-conditions:hover {
+  background: #2980b9;
+}
+
+.btn-conditions.view-mode {
+  background: #95a5a6;
+}
+
+.btn-conditions.view-mode:hover {
+  background: #7f8c8d;
 }
 
 .btn-remove {

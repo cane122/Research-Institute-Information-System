@@ -347,6 +347,37 @@
             </div>
           </div>
           
+          <!-- Conditions Section -->
+          <div v-if="phaseConditions.length > 0" class="form-group">
+            <label>Uslovi za ovu fazu</label>
+            <div class="conditions-list">
+              <div 
+                v-for="condition in phaseConditions" 
+                :key="condition.id"
+                class="condition-item"
+              >
+                <div class="condition-checkbox">
+                  <input 
+                    type="checkbox" 
+                    :id="`condition-${condition.id}`"
+                    :checked="condition.fulfilled"
+                    @change="toggleConditionFulfillment(condition)"
+                    class="condition-check"
+                  >
+                  <label :for="`condition-${condition.id}`" class="condition-label">
+                    <span class="condition-description">{{ condition.description }}</span>
+                    <span class="condition-criteria">{{ condition.criteria }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else-if="selectedTask?.phaseId" class="form-group">
+            <label>Uslovi za ovu fazu</label>
+            <p class="no-conditions">Nema definisanih uslova za ovu fazu</p>
+          </div>
+          
           <div class="form-row">
             <div class="form-group">
               <label>Deadline</label>
@@ -479,6 +510,37 @@
               </div>
             </div>
             
+            <!-- Conditions Section in Edit Modal -->
+            <div v-if="showEditModal && phaseConditions.length > 0" class="form-group">
+              <label>Uslovi za ovu fazu</label>
+              <div class="conditions-list">
+                <div 
+                  v-for="condition in phaseConditions" 
+                  :key="condition.id"
+                  class="condition-item"
+                >
+                  <div class="condition-checkbox">
+                    <input 
+                      type="checkbox" 
+                      :id="`condition-edit-${condition.id}`"
+                      :checked="condition.fulfilled"
+                      @change="toggleConditionFulfillment(condition)"
+                      class="condition-check"
+                    >
+                    <label :for="`condition-edit-${condition.id}`" class="condition-label">
+                      <span class="condition-description">{{ condition.description }}</span>
+                      <span class="condition-criteria">{{ condition.criteria }}</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else-if="showEditModal && taskForm.phaseId && phaseConditions.length === 0" class="form-group">
+              <label>Uslovi za ovu fazu</label>
+              <p class="no-conditions">Nema definisanih uslova za ovu fazu</p>
+            </div>
+            
             <div class="form-row">
               <div class="form-group">
                 <label>Dodeli korisniku</label>
@@ -539,7 +601,10 @@ import {
   createTask,
   updateTask,
   deleteTask as deleteTaskService,
-  moveTaskToPhase
+  moveTaskToPhase,
+  fetchConditionsByPhase,
+  fetchConditionAssessmentsByTask,
+  updateConditionAssessment
 } from '../services/taskService.js'
 
 // Auth store
@@ -579,6 +644,8 @@ const projects = ref([])
 const phases = ref([])
 const tasks = ref([])
 const users = ref([])
+const phaseConditions = ref([]) // Conditions for the selected phase
+const taskConditionAssessments = ref([]) // Assessments for the selected task
 
 // Check if user can manage the selected project (must be the project manager)
 const canManageProject = computed(() => {
@@ -703,6 +770,13 @@ watch(() => filters.value.project, async (newProjectId) => {
   }
 })
 
+// Watch for phase changes in task form
+watch(() => taskForm.value.phaseId, async (newPhaseId) => {
+  if (newPhaseId && (showEditModal.value || showDetailsModal.value)) {
+    await loadPhaseConditions(newPhaseId)
+  }
+})
+
 // Methods
 async function loadProjects() {
   loading.value = true
@@ -785,6 +859,76 @@ function selectTask(task) {
   selectedTask.value = task
   showDetailsModal.value = true
   console.log('Selected task:', task)
+  
+  // Load conditions for the task's phase
+  if (task.phaseId) {
+    loadPhaseConditionsForTask(task.id, task.phaseId)
+  }
+}
+
+async function loadPhaseConditions(phaseId) {
+  try {
+    phaseConditions.value = await fetchConditionsByPhase(phaseId)
+    console.log('Loaded conditions for phase:', phaseId, phaseConditions.value)
+  } catch (error) {
+    console.error('Error loading phase conditions:', error)
+    phaseConditions.value = []
+  }
+}
+
+async function loadPhaseConditionsForTask(taskId, phaseId) {
+  try {
+    // Load conditions for the phase
+    phaseConditions.value = await fetchConditionsByPhase(phaseId)
+    
+    // Load assessments for the task
+    const assessments = await fetchConditionAssessmentsByTask(taskId)
+    
+    // Create a map of assessments by condition ID
+    const assessmentMap = {}
+    assessments.forEach(a => {
+      assessmentMap[a.conditionId] = a
+    })
+    
+    // Merge conditions with assessments
+    phaseConditions.value = phaseConditions.value.map(condition => ({
+      ...condition,
+      fulfilled: assessmentMap[condition.id]?.fulfilled || false,
+      assessmentId: assessmentMap[condition.id]?.id || null,
+      note: assessmentMap[condition.id]?.note || ''
+    }))
+    
+    console.log('Loaded conditions with assessments:', phaseConditions.value)
+  } catch (error) {
+    console.error('Error loading conditions for task:', error)
+    phaseConditions.value = []
+  }
+}
+
+async function toggleConditionFulfillment(condition) {
+  if (!selectedTask.value) return
+  
+  const newFulfilledStatus = !condition.fulfilled
+  
+  loading.value = true
+  try {
+    await updateConditionAssessment(
+      selectedTask.value.id,
+      condition.id,
+      newFulfilledStatus,
+      condition.note || ''
+    )
+    
+    // Update local state
+    condition.fulfilled = newFulfilledStatus
+    
+    console.log(`Condition ${condition.id} updated to ${newFulfilledStatus}`)
+  } catch (error) {
+    console.error('Error updating condition assessment:', error)
+    alert('Greška pri ažuriranju uslova')
+  } finally {
+    loading.value = false
+  }
 }
 
 function editTaskFromDetails() {
@@ -812,6 +956,11 @@ function editTask(task) {
     resources: task.resources || ''
   }
   showEditModal.value = true
+  
+  // Load conditions for the task's phase
+  if (task.phaseId) {
+    loadPhaseConditionsForTask(task.id, task.phaseId)
+  }
 }
 
 async function deleteTask(task) {
@@ -898,6 +1047,7 @@ function closeModals() {
   showEditModal.value = false
   showDetailsModal.value = false
   selectedTask.value = null
+  phaseConditions.value = []
   taskForm.value = {
     title: '',
     description: '',
@@ -1407,6 +1557,77 @@ onMounted(async () => {
   border-top: 1px solid #ecf0f1;
   padding-top: 20px;
 }
+
+/* Conditions List */
+.conditions-list {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 8px;
+}
+
+.condition-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.condition-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.condition-item:first-child {
+  padding-top: 0;
+}
+
+.condition-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.condition-check {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #2ecc71;
+}
+
+.condition-label {
+  flex: 1;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.condition-description {
+  font-size: 14px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.condition-criteria {
+  font-size: 12px;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.no-conditions {
+  color: #95a5a6;
+  font-size: 14px;
+  font-style: italic;
+  margin: 10px 0 0 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  text-align: center;
+}
+
 
 /* Responsive */
 @media (max-width: 1024px) {

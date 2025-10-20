@@ -117,6 +117,35 @@ type ZahteviPromeneFaze struct {
 	DatumKreiranja      time.Time `json:"datum_kreiranja" db:"datum_kreiranja"`
 }
 
+// Uslovi represents conditions that must be met for phase transitions
+type Uslovi struct {
+	UslovID       int       `json:"uslov_id" db:"uslov_id"`
+	FazaID        int       `json:"faza_id" db:"faza_id"`
+	Opis          string    `json:"opis" db:"opis"`
+	Kriterijum    string    `json:"kriterijum" db:"kriterijum"`
+	KreiranDatuma time.Time `json:"kreiran_datuma" db:"kreiran_datuma" ts_type:"string"`
+
+	// Joined fields
+	NazivFaze string `json:"naziv_faze,omitempty" db:"naziv_faze"`
+}
+
+// ProcenaUslova represents condition fulfillment tracking for tasks
+type ProcenaUslova struct {
+	ProcenaID          int        `json:"procena_id" db:"procena_id"`
+	ZadatakID          int        `json:"zadatak_id" db:"zadatak_id"`
+	UslovID            int        `json:"uslov_id" db:"uslov_id"`
+	Ispunjen           bool       `json:"ispunjen" db:"ispunjen"`
+	Napomena           *string    `json:"napomena" db:"napomena"`
+	PromenioKorisnikID *int       `json:"promenio_korisnik_id" db:"promenio_korisnik_id"`
+	DatumProcene       time.Time  `json:"datum_procene" db:"datum_procene" ts_type:"string"`
+
+	// Joined fields
+	OpisUslova         string `json:"opis_uslova,omitempty" db:"opis_uslova"`
+	KriterijumUslova   string `json:"kriterijum_uslova,omitempty" db:"kriterijum_uslova"`
+	NazivZadatka       string `json:"naziv_zadatka,omitempty" db:"naziv_zadatka"`
+	ImeKorisnika       string `json:"ime_korisnika,omitempty" db:"ime_korisnika"`
+}
+
 // =============================================================================
 // Modul 3: Upravljanje Dokumentima i Meta-podacima
 // =============================================================================

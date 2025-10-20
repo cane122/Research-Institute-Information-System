@@ -34,8 +34,16 @@ export function CompleteProject(arg1) {
   return window['go']['main']['App']['CompleteProject'](arg1);
 }
 
+export function CreateCondition(arg1) {
+  return window['go']['main']['App']['CreateCondition'](arg1);
+}
+
 export function CreateNewProject(arg1) {
   return window['go']['main']['App']['CreateNewProject'](arg1);
+}
+
+export function CreateOrUpdateConditionAssessment(arg1) {
+  return window['go']['main']['App']['CreateOrUpdateConditionAssessment'](arg1);
 }
 
 export function CreatePhase(arg1) {
@@ -56,6 +64,10 @@ export function CreateUser(arg1, arg2) {
 
 export function CreateWorkflow(arg1) {
   return window['go']['main']['App']['CreateWorkflow'](arg1);
+}
+
+export function DeleteCondition(arg1) {
+  return window['go']['main']['App']['DeleteCondition'](arg1);
 }
 
 export function DeleteDocument(arg1) {
@@ -124,6 +136,18 @@ export function GetAllWorkflows() {
 
 export function GetAvailableTeamMembers() {
   return window['go']['main']['App']['GetAvailableTeamMembers']();
+}
+
+export function GetConditionAssessmentsByTask(arg1) {
+  return window['go']['main']['App']['GetConditionAssessmentsByTask'](arg1);
+}
+
+export function GetConditionFulfillmentStatus(arg1) {
+  return window['go']['main']['App']['GetConditionFulfillmentStatus'](arg1);
+}
+
+export function GetConditionsByPhase(arg1) {
+  return window['go']['main']['App']['GetConditionsByPhase'](arg1);
 }
 
 export function GetCurrentUser() {
@@ -284,6 +308,10 @@ export function SetOpenAIKey(arg1) {
 
 export function TestConnection() {
   return window['go']['main']['App']['TestConnection']();
+}
+
+export function UpdateCondition(arg1) {
+  return window['go']['main']['App']['UpdateCondition'](arg1);
 }
 
 export function UpdateDocument(arg1, arg2) {

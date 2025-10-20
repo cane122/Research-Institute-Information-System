@@ -19,7 +19,11 @@ export function CompleteFirstTimeSetup(arg1:string,arg2:string):Promise<Record<s
 
 export function CompleteProject(arg1:number):Promise<void>;
 
+export function CreateCondition(arg1:models.Uslovi):Promise<void>;
+
 export function CreateNewProject(arg1:models.CreateProjectRequest):Promise<void>;
+
+export function CreateOrUpdateConditionAssessment(arg1:models.ProcenaUslova):Promise<void>;
 
 export function CreatePhase(arg1:models.Faze):Promise<void>;
 
@@ -30,6 +34,8 @@ export function CreateTask(arg1:models.CreateTaskRequest):Promise<void>;
 export function CreateUser(arg1:models.Korisnici,arg2:string):Promise<void>;
 
 export function CreateWorkflow(arg1:models.RadniTokovi):Promise<void>;
+
+export function DeleteCondition(arg1:number):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
@@ -64,6 +70,12 @@ export function GetAllUsers():Promise<Array<models.Korisnici>>;
 export function GetAllWorkflows():Promise<Array<models.RadniTokovi>>;
 
 export function GetAvailableTeamMembers():Promise<Array<models.Korisnici>>;
+
+export function GetConditionAssessmentsByTask(arg1:number):Promise<Array<models.ProcenaUslova>>;
+
+export function GetConditionFulfillmentStatus(arg1:number):Promise<Record<string, any>>;
+
+export function GetConditionsByPhase(arg1:number):Promise<Array<models.Uslovi>>;
 
 export function GetCurrentUser():Promise<models.Korisnici>;
 
@@ -144,6 +156,8 @@ export function SetDocumentPermission(arg1:models.DocumentPermissionRequest):Pro
 export function SetOpenAIKey(arg1:string):Promise<void>;
 
 export function TestConnection():Promise<Record<string, any>>;
+
+export function UpdateCondition(arg1:models.Uslovi):Promise<void>;
 
 export function UpdateDocument(arg1:number,arg2:models.UploadDocumentRequest):Promise<void>;
 
