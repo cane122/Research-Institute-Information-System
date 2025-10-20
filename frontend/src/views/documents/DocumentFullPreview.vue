@@ -623,6 +623,8 @@ function fileToByteArray(file) {
   font-size: 0.95em;
   color: #374151;
   margin-top: 4px;
+  display: flex;
+  flex-direction: column;
 }
 .side-section {
   display: flex;

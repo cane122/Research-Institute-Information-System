@@ -154,12 +154,20 @@ export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }
 
+export function GetDocumentActivity(arg1) {
+  return window['go']['main']['App']['GetDocumentActivity'](arg1);
+}
+
 export function GetDocumentByID(arg1) {
   return window['go']['main']['App']['GetDocumentByID'](arg1);
 }
 
 export function GetDocumentPermissions(arg1) {
   return window['go']['main']['App']['GetDocumentPermissions'](arg1);
+}
+
+export function GetDocumentPhaseDurations(arg1) {
+  return window['go']['main']['App']['GetDocumentPhaseDurations'](arg1);
 }
 
 export function GetDocumentPhaseHistory(arg1) {

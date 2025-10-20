@@ -38,6 +38,20 @@ export namespace main {
 	        this.faze = source["faze"];
 	    }
 	}
+	export class PhaseDurationInfo {
+	    naziv_faze: string;
+	    trajanje_sekundi: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PhaseDurationInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.naziv_faze = source["naziv_faze"];
+	        this.trajanje_sekundi = source["trajanje_sekundi"];
+	    }
+	}
 
 }
 

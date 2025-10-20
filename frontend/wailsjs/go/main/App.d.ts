@@ -80,9 +80,13 @@ export function GetAllWorkflows():Promise<Array<models.RadniTokovi>>;
 
 export function GetCurrentUser():Promise<models.Korisnici>;
 
+export function GetDocumentActivity(arg1:number):Promise<Array<models.SkornjeAktivnosti>>;
+
 export function GetDocumentByID(arg1:number):Promise<models.Dokumenti>;
 
 export function GetDocumentPermissions(arg1:number):Promise<Array<models.DocumentPermissionResponse>>;
+
+export function GetDocumentPhaseDurations(arg1:number):Promise<Array<main.PhaseDurationInfo>>;
 
 export function GetDocumentPhaseHistory(arg1:number):Promise<Array<models.IstorijaFazaDokumenta>>;
 

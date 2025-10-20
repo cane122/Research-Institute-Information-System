@@ -95,6 +95,14 @@ const routes = [
     component: DocumentAnalytics,
     meta: { requiresAuth: true }
   },
+  // Per-document analytics page (leader/admin access via UI; backend enforces perms)
+  {
+    path: '/projects/:projectId/documents/:docId/analytics',
+    name: 'DocumentAnalyticsDetail',
+    component: () => import('./views/documents/DocumentAnalyticsDetail.vue'),
+    meta: { requiresAuth: true },
+    props: true
+  },
   {
     path: '/tasks',
     name: 'Tasks',

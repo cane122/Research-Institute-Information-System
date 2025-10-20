@@ -22,6 +22,106 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// PhaseDurationInfo represents phase name and duration in seconds
+type PhaseDurationInfo struct {
+	NazivFaze       string `json:"naziv_faze"`
+	TrajanjeSekundi int64  `json:"trajanje_sekundi"`
+}
+
+// GetDocumentPhaseDurations returns a list of phases and how long the document spent in each
+func (a *App) GetDocumentPhaseDurations(documentID int) ([]PhaseDurationInfo, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+	if a.docPhaseHistSvc == nil || a.fazeService == nil || a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get document to see current phase and creation date
+	doc, err := a.documentService.GetDocumentByID(documentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get phase history, ordered DESC by datum_promene (newest first)
+	history, err := a.docPhaseHistSvc.ListByDocument(documentID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build phase duration map faza_id -> trajanje
+	durations := make(map[int]int64)
+	phaseNames := make(map[int]string)
+
+	// If there's no history, document is still in its initial phase
+	if len(history) == 0 {
+		if doc.TrenutnaFazaID != nil {
+			naziv, _ := a.fazeService.GetFazaNaziv(*doc.TrenutnaFazaID)
+			trajanje := int64(time.Since(doc.DatumaPostavke).Seconds())
+			if trajanje < 0 {
+				trajanje = 0
+			}
+			durations[*doc.TrenutnaFazaID] = trajanje
+			phaseNames[*doc.TrenutnaFazaID] = naziv
+		}
+	} else {
+		// Reverse to ASC order (oldest first)
+		for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+			history[i], history[j] = history[j], history[i]
+		}
+		// Initial phase before first change
+		if doc.TrenutnaFazaID != nil {
+			firstEntry := history[0]
+			if firstEntry.PrethodnaFazaID != nil && *firstEntry.PrethodnaFazaID > 0 {
+				naziv, _ := a.fazeService.GetFazaNaziv(*firstEntry.PrethodnaFazaID)
+				trajanje := int64(firstEntry.DatumPromene.Sub(doc.DatumaPostavke).Seconds())
+				if trajanje < 0 {
+					trajanje = 0
+				}
+				durations[*firstEntry.PrethodnaFazaID] = trajanje
+				phaseNames[*firstEntry.PrethodnaFazaID] = naziv
+			}
+		}
+		// For each entry, compute duration until next change (or now for last)
+		for i, h := range history {
+			start := h.DatumPromene
+			var end time.Time
+			if i+1 < len(history) {
+				end = history[i+1].DatumPromene
+			} else {
+				end = time.Now()
+			}
+			trajanje := int64(end.Sub(start).Seconds())
+			if trajanje < 0 {
+				trajanje = 0 // Safety check
+			}
+			durations[h.NovaFazaID] += trajanje
+			naziv, _ := a.fazeService.GetFazaNaziv(h.NovaFazaID)
+			phaseNames[h.NovaFazaID] = naziv
+		}
+	}
+
+	// Get all phases for this workflow
+	var allPhases []models.Faze
+	if doc.RadniTokID != nil && a.workflowService != nil {
+		phases, err := a.workflowService.GetWorkflowPhases(*doc.RadniTokID)
+		if err == nil {
+			allPhases = phases
+		}
+	}
+
+	// Compose result: for each phase in workflow, show duration or 0s
+	var result []PhaseDurationInfo
+	for _, faza := range allPhases {
+		dur := durations[faza.FazaID]
+		result = append(result, PhaseDurationInfo{
+			NazivFaze:       faza.NazivFaze,
+			TrajanjeSekundi: dur,
+		})
+	}
+	return result, nil
+}
+
 //go:embed all:frontend/dist
 var assets embed.FS
 
@@ -43,6 +143,7 @@ type App struct {
 	projectRepo      *repositories.ProjectRepository
 	currentUser      *models.User
 	zadacicService   *services.ZadacicService
+	fazeService      *services.FazeService
 }
 
 // NewApp creates a new App application struct
@@ -198,6 +299,7 @@ func (a *App) initializeDatabase() {
 	a.llmService = services.NewLLMService()
 	a.analyticsService = services.NewAnalyticsService(db)
 	a.zadacicService = services.NewZadacicService(db)
+	a.fazeService = services.NewFazeService(db)
 }
 
 // ===================== Zadacici (Checklist) =====================
@@ -524,6 +626,23 @@ func (a *App) UpdatePhaseChangeRequestStatus(id int, status string, komentar *st
 		if err != nil {
 			return fmt.Errorf("greška pri čuvanju istorije faza: %v", err)
 		}
+
+		// Log activity for phase change
+		if a.analyticsService != nil && a.fazeService != nil {
+			var nazivStareFaze, nazivNoveFaze string
+			if doc.TrenutnaFazaID != nil {
+				nazivStareFaze, _ = a.fazeService.GetFazaNaziv(*doc.TrenutnaFazaID)
+			}
+			nazivNoveFaze, _ = a.fazeService.GetFazaNaziv(request.ZahtevanaFazaID)
+			_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+				TipAktivnosti: "PHASE_CHANGE",
+				EntitetTip:    "DOKUMENT",
+				EntitetID:     *request.DokumentID,
+				NazivEntiteta: doc.NazivDokumenta,
+				Opis:          fmt.Sprintf("Promena faze dokumenta sa '%s' na '%s'", nazivStareFaze, nazivNoveFaze),
+				Rezultat:      "SUCCESS",
+			})
+		}
 	}
 
 	return nil
@@ -573,6 +692,23 @@ func (a *App) ChangeDocumentPhase(documentID int, newPhaseID int) error {
 		documentID, doc.TrenutnaFazaID, newPhaseID, a.currentUser.KorisnikID)
 	if err != nil {
 		return fmt.Errorf("greška pri čuvanju istorije faza: %v", err)
+	}
+
+	// Log activity for direct phase change
+	if a.analyticsService != nil && a.fazeService != nil {
+		var nazivStareFaze, nazivNoveFaze string
+		if doc.TrenutnaFazaID != nil {
+			nazivStareFaze, _ = a.fazeService.GetFazaNaziv(*doc.TrenutnaFazaID)
+		}
+		nazivNoveFaze, _ = a.fazeService.GetFazaNaziv(newPhaseID)
+		_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+			TipAktivnosti: "PHASE_CHANGE",
+			EntitetTip:    "DOKUMENT",
+			EntitetID:     documentID,
+			NazivEntiteta: doc.NazivDokumenta,
+			Opis:          fmt.Sprintf("Direktna promena faze dokumenta sa '%s' na '%s'", nazivStareFaze, nazivNoveFaze),
+			Rezultat:      "SUCCESS",
+		})
 	}
 
 	return nil
@@ -641,6 +777,19 @@ func (a *App) AddDocumentVersion(v models.VerzijeDokumenata) (int, error) {
 	if err := a.docVersionSvc.Create(&v); err != nil {
 		return 0, err
 	}
+	// Log version creation as a document edit
+	if a.analyticsService != nil {
+		if doc, derr := a.documentService.GetDocumentByID(v.DokumentID); derr == nil {
+			_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+				TipAktivnosti: "DOCUMENT_EDIT",
+				EntitetTip:    "DOKUMENT",
+				EntitetID:     v.DokumentID,
+				NazivEntiteta: doc.NazivDokumenta,
+				Opis:          "Dodata nova verzija dokumenta",
+				Rezultat:      "SUCCESS",
+			})
+		}
+	}
 	return v.VerzijaID, nil
 }
 
@@ -658,7 +807,23 @@ func (a *App) DeleteDocumentVersion(versionID int, documentID int) error {
 	if !ok {
 		return errors.New("nemate dozvolu za brisanje")
 	}
-	return a.docVersionSvc.Delete(versionID)
+	if err := a.docVersionSvc.Delete(versionID); err != nil {
+		return err
+	}
+	// Log version deletion as a document edit
+	if a.analyticsService != nil {
+		if doc, derr := a.documentService.GetDocumentByID(documentID); derr == nil {
+			_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+				TipAktivnosti: "DOCUMENT_EDIT",
+				EntitetTip:    "DOKUMENT",
+				EntitetID:     documentID,
+				NazivEntiteta: doc.NazivDokumenta,
+				Opis:          "Obrisana verzija dokumenta",
+				Rezultat:      "SUCCESS",
+			})
+		}
+	}
+	return nil
 }
 
 // UploadDocumentVersion creates a new version for a document
@@ -677,7 +842,24 @@ func (a *App) UploadDocumentVersion(documentID int, versionLabel *string, fileDa
 	if !ok {
 		return 0, errors.New("nemate dozvolu za izmene dokumenta")
 	}
-	return a.documentService.SaveNewVersion(documentID, a.currentUser.KorisnikID, versionLabel, fileData, originalFileName)
+	vid, err := a.documentService.SaveNewVersion(documentID, a.currentUser.KorisnikID, versionLabel, fileData, originalFileName)
+	if err != nil {
+		return 0, err
+	}
+	// Log version upload as document edit
+	if a.analyticsService != nil {
+		if doc, derr := a.documentService.GetDocumentByID(documentID); derr == nil {
+			_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+				TipAktivnosti: "DOCUMENT_EDIT",
+				EntitetTip:    "DOKUMENT",
+				EntitetID:     documentID,
+				NazivEntiteta: doc.NazivDokumenta,
+				Opis:          "Postavljena nova verzija dokumenta",
+				Rezultat:      "SUCCESS",
+			})
+		}
+	}
+	return vid, nil
 }
 
 // Login authenticates a user
@@ -1115,6 +1297,21 @@ func (a *App) CreateDocumentWithPermissions(req CreateDocumentWithPermissionsReq
 		_, err = a.db.Exec(updateQuery, req.RadniTokID, firstPhaseID, documentID)
 		if err != nil {
 			log.Printf("Warning: failed to set workflow/phase: %v", err)
+		} else {
+			// Log initial phase assignment as a phase change
+			if a.analyticsService != nil && a.fazeService != nil {
+				if doc, derr := a.documentService.GetDocumentByID(documentID); derr == nil {
+					nazivFaze, _ := a.fazeService.GetFazaNaziv(*firstPhaseID)
+					_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+						TipAktivnosti: "PHASE_CHANGE",
+						EntitetTip:    "DOKUMENT",
+						EntitetID:     documentID,
+						NazivEntiteta: doc.NazivDokumenta,
+						Opis:          fmt.Sprintf("Postavljanje početne faze dokumenta na '%s' (radni tok %d)", nazivFaze, req.RadniTokID),
+						Rezultat:      "SUCCESS",
+					})
+				}
+			}
 		}
 	}
 
@@ -1157,7 +1354,21 @@ func (a *App) UpdateDocument(documentID int, req models.UploadDocumentRequest) e
 	if !ok {
 		return errors.New("nemate dozvolu za izmenu dokumenta")
 	}
-	return a.documentService.UpdateDocument(documentID, req)
+	if err := a.documentService.UpdateDocument(documentID, req); err != nil {
+		return err
+	}
+	// Log activity for document edit
+	if a.analyticsService != nil {
+		_ = a.analyticsService.LogActivity(&a.currentUser.KorisnikID, models.ActivityLogRequest{
+			TipAktivnosti: "DOCUMENT_EDIT",
+			EntitetTip:    "DOKUMENT",
+			EntitetID:     documentID,
+			NazivEntiteta: req.NazivDokumenta,
+			Opis:          "Izmena meta podataka dokumenta",
+			Rezultat:      "SUCCESS",
+		})
+	}
+	return nil
 }
 
 // DeleteDocument deletes a document
@@ -1377,6 +1588,31 @@ func (a *App) GetTopContributors(limit int) ([]map[string]interface{}, error) {
 	}
 
 	return a.analyticsService.GetTopContributors(limit)
+}
+
+// GetDocumentActivity returns activity logs for a specific document (owner/leader/admin or readers)
+func (a *App) GetDocumentActivity(documentID int) ([]models.SkornjeAktivnosti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+	if a.analyticsService == nil || a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	// Allow if user is owner/admin/leader or has read permission on the document
+	allowed, err := a.documentService.IsOwnerAdminOrLeader(documentID, a.currentUser.KorisnikID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		hasAccess, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+		if err != nil {
+			return nil, err
+		}
+		if !hasAccess {
+			return nil, errors.New("nemate dozvolu za pregled analitike ovog dokumenta")
+		}
+	}
+	return a.analyticsService.GetActivityForDocument(documentID)
 }
 
 // ============================================================================

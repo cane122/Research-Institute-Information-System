@@ -44,6 +44,8 @@
                 </div>
                 <div class="actions">
                   <button class="btn btn-small" @click="fullPreview(d)">Pregled</button>
+                  <button v-if="canSeeAnalytics" class="btn btn-small" @click="openAnalytics(d)" style="margin-left:8px">Analitika</button>
+                  <button v-if="canSeeAnalytics" class="btn btn-small btn-danger" @click="confirmDelete(d)" style="margin-left:8px">Obriši</button>
                 </div>
               </div>
             </div>
@@ -56,9 +58,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Layout from '../../components/Layout.vue'
+import { useAuthStore } from '../../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -68,6 +71,8 @@ const docs = ref([])
 const loading = ref(true)
 const error = ref('')
 const canAdd = ref(false)
+const authStore = useAuthStore()
+const canSeeAnalytics = computed(() => !!(canAdd.value || authStore.isAdmin))
 
 function formatDate(s) {
   if (!s) return '-'
@@ -86,6 +91,25 @@ function goToUpload() {
 
 function fullPreview(doc) {
   router.push(`/documents/full-preview/${doc.dokument_id}`)
+}
+
+function openAnalytics(doc) {
+  router.push(`/projects/${projectId}/documents/${doc.dokument_id}/analytics`)
+}
+
+async function confirmDelete(doc) {
+  if (!confirm(`Da li ste sigurni da želite da obrišete dokument "${doc.naziv_dokumenta}"?\n\nOva akcija je nepovratna.`)) {
+    return
+  }
+  
+  try {
+    await window.go?.main?.App?.DeleteDocument(doc.dokument_id)
+    // Remove from list
+    docs.value = docs.value.filter(d => d.dokument_id !== doc.dokument_id)
+    alert('Dokument je uspešno obrisan.')
+  } catch (e) {
+    alert('Greška pri brisanju dokumenta: ' + (e?.message || 'Nepoznata greška'))
+  }
 }
 
 onMounted(async () => {
@@ -148,4 +172,6 @@ onMounted(async () => {
 .empty, .loading, .error { padding: 16px; color: #6b7280; }
 .error { color: #b91c1c; }
 .btn-small { font-size: 12px; padding: 6px 10px; }
+.btn-danger { background: #dc2626; color: white; }
+.btn-danger:hover { background: #b91c1c; }
 </style>

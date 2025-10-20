@@ -119,6 +119,57 @@ func (s *AnalyticsService) GetRecentActivity(limit int) ([]models.SkornjeAktivno
 	return activities, nil
 }
 
+// GetActivityForDocument retrieves activities for a specific document
+func (s *AnalyticsService) GetActivityForDocument(documentID int) ([]models.SkornjeAktivnosti, error) {
+	// Query activities filtered by target entity and id
+	query := `
+		SELECT 
+			la.log_id,
+			la.korisnik_id,
+			COALESCE(k.korisnicko_ime, '') as korisnik_ime,
+			la.tip_aktivnosti,
+			COALESCE(la.ciljani_entitet, '') as entitet_tip,
+			COALESCE(la.ciljani_id, 0) as entitet_id,
+			COALESCE(la.opis, '') as naziv_entiteta,
+			COALESCE(la.opis, '') as opis,
+			'SUCCESS' as rezultat,
+			la.datuma as kreiran_datuma
+		FROM logaktivnosti la
+		LEFT JOIN korisnici k ON la.korisnik_id = k.korisnik_id
+		WHERE LOWER(COALESCE(la.ciljani_entitet, '')) = 'dokument' AND la.ciljani_id = $1
+		ORDER BY la.datuma DESC
+	`
+
+	rows, err := s.db.Query(query, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query document activity: %w", err)
+	}
+	defer rows.Close()
+
+	var activities []models.SkornjeAktivnosti
+	for rows.Next() {
+		var activity models.SkornjeAktivnosti
+		err := rows.Scan(
+			&activity.LogID,
+			&activity.KorisnikID,
+			&activity.KorisnikIme,
+			&activity.TipAktivnosti,
+			&activity.EntitetTip,
+			&activity.EntitetID,
+			&activity.NazivEntiteta,
+			&activity.Opis,
+			&activity.Rezultat,
+			&activity.KreiranDatuma,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan activity: %w", err)
+		}
+		activities = append(activities, activity)
+	}
+
+	return activities, nil
+}
+
 // ============================================================================
 // Statistics
 // ============================================================================
