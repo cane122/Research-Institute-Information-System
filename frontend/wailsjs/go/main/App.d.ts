@@ -11,6 +11,8 @@ export function ApprovePhaseChangeRequest(arg1:number):Promise<void>;
 
 export function AskDocumentQuestion(arg1:number,arg2:string):Promise<string>;
 
+export function CheckTaskConditionsFulfilled(arg1:number):Promise<boolean>;
+
 export function CheckUserPermission(arg1:number,arg2:string):Promise<boolean>;
 
 export function CloneWorkflow(arg1:number,arg2:string):Promise<number>;
@@ -93,6 +95,10 @@ export function GetDocumentVersions(arg1:number):Promise<Array<models.VerzijeDok
 
 export function GetDocumentsByType():Promise<Record<string, number>>;
 
+export function GetManagerPhaseChangeRequests():Promise<Array<Record<string, any>>>;
+
+export function GetNextPhaseForTask(arg1:number):Promise<models.Faze>;
+
 export function GetOverdueTasksForProject(arg1:number):Promise<Array<models.Zadaci>>;
 
 export function GetPhaseChangeRequestsForProject(arg1:number):Promise<Array<models.ZahteviPromeneFaze>>;
@@ -134,6 +140,8 @@ export function GetWorkflowByID(arg1:number):Promise<models.RadniTokovi>;
 export function GetWorkflowPhases(arg1:number):Promise<Array<models.Faze>>;
 
 export function GetWorkflowTemplates():Promise<Array<models.RadniTokovi>>;
+
+export function HasPendingPhaseChangeRequest(arg1:number):Promise<boolean>;
 
 export function LogActivity(arg1:models.ActivityLogRequest):Promise<void>;
 

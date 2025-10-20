@@ -12,6 +12,7 @@ import DocumentPreview from './views/documents/DocumentPreview.vue'
 import DocumentAnalytics from './views/documents/DocumentAnalytics.vue'
 import DocumentFullPreview from './views/documents/DocumentFullPreview.vue'
 import Tasks from './views/Tasks.vue'
+import PhaseChangeRequests from './views/PhaseChangeRequests.vue'
 import Users from './views/Users.vue'
 
 const routes = [
@@ -80,6 +81,12 @@ const routes = [
     path: '/tasks',
     name: 'Tasks',
     component: Tasks,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/phase-change-requests',
+    name: 'PhaseChangeRequests',
+    component: PhaseChangeRequests,
     meta: { requiresAuth: true }
   },
   {

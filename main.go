@@ -1258,7 +1258,102 @@ func (a *App) RequestPhaseChange(taskID, requestedPhaseID int, comment string) e
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// Check if there's already a pending request for this task
+	hasPending, err := a.HasPendingPhaseChangeRequest(taskID)
+	if err != nil {
+		return err
+	}
+	if hasPending {
+		return errors.New("već postoji aktivni zahtev za promenu faze za ovaj zadatak")
+	}
+
 	return a.taskService.RequestPhaseChange(taskID, a.currentUser.KorisnikID, requestedPhaseID, comment)
+}
+
+// HasPendingPhaseChangeRequest checks if there's a pending phase change request for a task
+func (a *App) HasPendingPhaseChangeRequest(taskID int) (bool, error) {
+	if a.currentUser == nil {
+		return false, errors.New("niste prijavljeni")
+	}
+
+	if a.db == nil {
+		return false, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	var count int
+	err := a.db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM zahtevipromenefaze 
+		WHERE zadatak_id = $1 AND status = 'na čekanju'
+	`, taskID).Scan(&count)
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+// GetNextPhaseForTask returns the next phase in sequence for a task
+func (a *App) GetNextPhaseForTask(taskID int) (*models.Faze, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil || a.workflowService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to find current phase
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get workflow for the task's project
+	var workflowID int
+	err = a.db.QueryRow(`SELECT radni_tok_id FROM projekti WHERE projekat_id = $1`, task.ProjekatID).Scan(&workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all phases for workflow ordered by sequence
+	phases, err := a.workflowService.GetPhasesByWorkflow(workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find current phase and return next one
+	for i, phase := range phases {
+		if phase.FazaID == task.FazaID {
+			if i+1 < len(phases) {
+				return &phases[i+1], nil
+			}
+			return nil, errors.New("zadatak je već u poslednjoj fazi")
+		}
+	}
+
+	return nil, errors.New("trenutna faza nije pronađena u radnom toku")
+}
+
+// CheckTaskConditionsFulfilled checks if all conditions for current phase are fulfilled
+func (a *App) CheckTaskConditionsFulfilled(taskID int) (bool, error) {
+	if a.currentUser == nil {
+		return false, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil || a.conditionService == nil {
+		return false, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get task to find current phase
+	task, err := a.taskService.GetTaskByID(taskID)
+	if err != nil {
+		return false, err
+	}
+
+	// Check if all conditions are fulfilled
+	return a.conditionService.CheckAllConditionsFulfilled(taskID, task.FazaID)
 }
 
 // GetPhaseChangeRequestsForProject returns all phase change requests for a project
@@ -1321,6 +1416,108 @@ func (a *App) RejectPhaseChangeRequest(requestID int) error {
 	}
 
 	return a.taskService.RejectPhaseChangeRequest(requestID)
+}
+
+// GetManagerPhaseChangeRequests returns all phase change requests for projects managed by the current user
+func (a *App) GetManagerPhaseChangeRequests() ([]map[string]interface{}, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil || a.projectRepo == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Only managers can view
+	if a.currentUser.NazivUloge != "Rukovodilac projekta" && a.currentUser.NazivUloge != "Administrator" {
+		return nil, errors.New("samo rukovodilac projekta može videti zahteve")
+	}
+
+	fmt.Printf("🔍 Loading requests for user: %d (%s)\n", a.currentUser.KorisnikID, a.currentUser.KorisnickoIme)
+
+	// Get projects where user is the leader
+	projects, err := a.projectRepo.GetByUserID(a.currentUser.KorisnikID)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("📁 Found %d projects for user\n", len(projects))
+
+	var allRequests []map[string]interface{}
+
+	// Get phase change requests for each project
+	for _, project := range projects {
+		fmt.Printf("  📂 Checking project %d (%s), Leader ID: %v\n", project.ProjekatID, project.NazivProjekta, project.RukovodilaID)
+		
+		// Only include projects where user is the leader
+		if project.RukovodilaID == nil || *project.RukovodilaID != a.currentUser.KorisnikID {
+			fmt.Printf("    ❌ Skipping - user is not the leader\n")
+			continue
+		}
+
+		fmt.Printf("    ✅ User is the leader - checking requests\n")
+
+		requests, err := a.taskService.GetPhaseChangeRequests(&project.ProjekatID, nil)
+		if err != nil {
+			fmt.Printf("    ⚠️  Error getting requests: %v\n", err)
+			continue
+		}
+
+		fmt.Printf("    📋 Found %d requests for this project\n", len(requests))
+
+		// Enrich requests with additional info
+		for _, request := range requests {
+			fmt.Printf("      🔸 Request %d - Status: %s\n", request.ZahtevID, request.Status)
+			
+			// Only include pending requests (check both variants)
+			if request.Status != "Na cekanju" && request.Status != "na čekanju" {
+				fmt.Printf("        ⏭️  Skipping - not pending (status: %s)\n", request.Status)
+				continue
+			}
+
+			// Get task details
+			task, err := a.taskService.GetTaskByID(request.ZadatakID)
+			if err != nil {
+				fmt.Printf("        ⚠️  Error getting task: %v\n", err)
+				continue
+			}
+
+			// Get phase details
+			var phaseName string
+			err = a.db.QueryRow("SELECT naziv_faze FROM faze WHERE faza_id = $1", request.ZahtevanaFazaID).Scan(&phaseName)
+			if err != nil {
+				phaseName = "Nepoznata faza"
+			}
+
+			// Get submitter details
+			var submitterName string
+			err = a.db.QueryRow("SELECT COALESCE(ime || ' ' || prezime, korisnicko_ime) FROM korisnici WHERE korisnik_id = $1", request.PodnosilacZahtevaID).Scan(&submitterName)
+			if err != nil {
+				submitterName = "Nepoznat korisnik"
+			}
+
+			enrichedRequest := map[string]interface{}{
+				"zahtev_id":             request.ZahtevID,
+				"zadatak_id":            request.ZadatakID,
+				"naziv_zadatka":         task.NazivZadatka,
+				"projekat_id":           project.ProjekatID,
+				"naziv_projekta":        project.NazivProjekta,
+				"podnosilac_zahteva_id": request.PodnosilacZahtevaID,
+				"podnosilac_ime":        submitterName,
+				"zahtevana_faza_id":     request.ZahtevanaFazaID,
+				"naziv_faze":            phaseName,
+				"status":                request.Status,
+				"komentar":              request.Komentar,
+				"datum_kreiranja":       request.DatumKreiranja,
+			}
+
+			fmt.Printf("        ✅ Added request: %s\n", task.NazivZadatka)
+			allRequests = append(allRequests, enrichedRequest)
+		}
+	}
+
+	fmt.Printf("📊 Total requests to return: %d\n", len(allRequests))
+	return allRequests, nil
 }
 
 // GetOverdueTasksForProject returns overdue tasks for a project

@@ -12,6 +12,14 @@
             {{ viewMode === 'kanban' ? '📋 Lista' : '📊 Kanban' }}
           </button>
           <button 
+            v-if="authStore.isManager"
+            class="btn btn-info" 
+            @click="goToRequests"
+          >
+            <span class="btn-icon">📋</span>
+            Lista zahteva
+          </button>
+          <button 
             v-if="canManageProject"
             class="btn btn-primary" 
             @click="openCreateModal" 
@@ -425,12 +433,85 @@
               Zatvori
             </button>
             <button 
+              v-if="!canManageProject && areAllConditionsFulfilled" 
+              type="button" 
+              class="btn btn-success" 
+              @click="openPhaseChangeRequestModal"
+              :disabled="loadingConditions"
+            >
+              🔄 Zahtev za promenu faze
+            </button>
+            <button 
               v-if="canManageProject" 
               type="button" 
               class="btn btn-primary" 
               @click="editTaskFromDetails"
             >
               Uredi zadatak
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Phase Change Request Modal -->
+      <div v-if="showPhaseChangeModal" class="modal-overlay" @click="closeModals">
+        <div class="modal" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">Zahtev za promenu faze</h3>
+            <button class="modal-close" @click="closeModals">×</button>
+          </div>
+          
+          <div class="form-group">
+            <label>Zadatak</label>
+            <input 
+              type="text" 
+              :value="selectedTask?.title || ''" 
+              readonly
+              disabled
+            >
+          </div>
+          
+          <div class="form-group">
+            <label>Trenutna faza</label>
+            <input 
+              type="text" 
+              :value="selectedTask?.phaseName || getStatusText(selectedTask?.phaseId)" 
+              readonly
+              disabled
+            >
+          </div>
+          
+          <div class="form-group">
+            <label>Zahtevana faza (sledeća u redosledu)</label>
+            <input 
+              type="text" 
+              :value="nextPhase?.naziv_faze || nextPhase?.name || 'Učitavanje...'" 
+              readonly
+              disabled
+            >
+          </div>
+          
+          <div class="form-group">
+            <label>Opis zahteva</label>
+            <textarea 
+              v-model="phaseChangeForm.description" 
+              rows="4"
+              placeholder="Opišite razlog za promenu faze..."
+              required
+            ></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" @click="closeModals">
+              Otkaži
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              @click="submitPhaseChangeRequest"
+              :disabled="!phaseChangeForm.description || loadingPhaseChange"
+            >
+              {{ loadingPhaseChange ? 'Slanje...' : 'Pošalji zahtev' }}
             </button>
           </div>
         </div>
@@ -591,6 +672,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import Layout from '../components/Layout.vue'
 import { useAuthStore } from '../stores/auth.js'
 import {
@@ -606,6 +688,9 @@ import {
   fetchConditionAssessmentsByTask,
   updateConditionAssessment
 } from '../services/taskService.js'
+
+// Router
+const router = useRouter()
 
 // Auth store
 const authStore = useAuthStore()
@@ -646,6 +731,22 @@ const tasks = ref([])
 const users = ref([])
 const phaseConditions = ref([]) // Conditions for the selected phase
 const taskConditionAssessments = ref([]) // Assessments for the selected task
+const showPhaseChangeModal = ref(false)
+const nextPhase = ref(null)
+const loadingConditions = ref(false)
+const loadingPhaseChange = ref(false)
+
+const phaseChangeForm = ref({
+  description: ''
+})
+
+// Check if all conditions are fulfilled
+const areAllConditionsFulfilled = computed(() => {
+  if (phaseConditions.value.length === 0) {
+    return true // No conditions means they're all fulfilled
+  }
+  return phaseConditions.value.every(condition => condition.fulfilled === true)
+})
 
 // Check if user can manage the selected project (must be the project manager)
 const canManageProject = computed(() => {
@@ -821,6 +922,10 @@ async function loadProjectData(projectId) {
 
 function toggleView() {
   viewMode.value = viewMode.value === 'kanban' ? 'list' : 'kanban'
+}
+
+function goToRequests() {
+  router.push('/phase-change-requests')
 }
 
 function getColumnTasks(columnId) {
@@ -1046,8 +1151,13 @@ function closeModals() {
   showCreateModal.value = false
   showEditModal.value = false
   showDetailsModal.value = false
+  showPhaseChangeModal.value = false
   selectedTask.value = null
   phaseConditions.value = []
+  nextPhase.value = null
+  phaseChangeForm.value = {
+    description: ''
+  }
   taskForm.value = {
     title: '',
     description: '',
@@ -1057,6 +1167,76 @@ function closeModals() {
     deadline: '',
     phaseId: null,
     resources: ''
+  }
+}
+
+async function openPhaseChangeRequestModal() {
+  if (!selectedTask.value) return
+  
+  loadingConditions.value = true
+  try {
+    const { CheckTaskConditionsFulfilled, GetNextPhaseForTask, HasPendingPhaseChangeRequest } = window.go.main.App
+    
+    // Check if there's already a pending request
+    const hasPending = await HasPendingPhaseChangeRequest(selectedTask.value.id)
+    if (hasPending) {
+      alert('Već postoji aktivni zahtev za promenu faze za ovaj zadatak. Molimo sačekajte da rukovodilac projekta pregleda postojeći zahtev.')
+      return
+    }
+    
+    // Check if all conditions are fulfilled
+    const fulfilled = await CheckTaskConditionsFulfilled(selectedTask.value.id)
+    if (!fulfilled) {
+      alert('Svi uslovi za trenutnu fazu moraju biti ispunjeni pre nego što možete zatražiti promenu faze.')
+      return
+    }
+    
+    // Get next phase
+    nextPhase.value = await GetNextPhaseForTask(selectedTask.value.id)
+    
+    if (!nextPhase.value) {
+      alert('Nema sledeće faze u radnom toku.')
+      return
+    }
+    
+    // Open modal
+    showDetailsModal.value = false
+    showPhaseChangeModal.value = true
+  } catch (error) {
+    console.error('Error opening phase change modal:', error)
+    alert('Greška: ' + (error.message || error))
+  } finally {
+    loadingConditions.value = false
+  }
+}
+
+async function submitPhaseChangeRequest() {
+  if (!selectedTask.value || !nextPhase.value || !phaseChangeForm.value.description) {
+    return
+  }
+  
+  loadingPhaseChange.value = true
+  try {
+    const { RequestPhaseChange } = window.go.main.App
+    
+    await RequestPhaseChange(
+      selectedTask.value.id,
+      nextPhase.value.faza_id || nextPhase.value.id,
+      phaseChangeForm.value.description
+    )
+    
+    alert('Zahtev za promenu faze je uspešno poslat! Rukovodilac projekta će ga pregledati.')
+    closeModals()
+    
+    // Reload tasks
+    if (selectedProjectId.value) {
+      await loadProjectData(selectedProjectId.value)
+    }
+  } catch (error) {
+    console.error('Error submitting phase change request:', error)
+    alert('Greška pri slanju zahteva: ' + (error.message || error))
+  } finally {
+    loadingPhaseChange.value = false
   }
 }
 
@@ -1691,4 +1871,21 @@ onMounted(async () => {
     min-width: 600px;
   }
 }
+
+/* Success button */
+.btn-success {
+  background: #2ecc71;
+  color: white;
+  border: none;
+}
+
+.btn-success:hover {
+  background: #27ae60;
+}
+
+.btn-success:disabled {
+  background: #95a5a6;
+  cursor: not-allowed;
+}
 </style>
+

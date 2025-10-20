@@ -29,6 +29,9 @@ Informacioni sistem za istraživačko razvojni institut kreiran sa Wails framewo
    - Lista i Kanban prikaz
    - Filteriranje po projektu, prioritetu, korisniku
    - CRUD operacije za zadatke
+   - Uslovi faze (phase conditions)
+   - Zahtevi za promenu faze (phase change requests)
+   - **Lista zahteva** - stranica za rukovodioce projekata
 
 5. **Upravljanje dokumenata**
    - Upload funkcionalnost

@@ -86,6 +86,11 @@ func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, erro
 	return phases, nil
 }
 
+// GetPhasesByWorkflow is an alias for GetWorkflowPhases
+func (s *WorkflowService) GetPhasesByWorkflow(workflowID int) ([]models.Faze, error) {
+	return s.GetWorkflowPhases(workflowID)
+}
+
 func (s *WorkflowService) CreateWorkflow(workflow models.RadniTokovi) error {
 	query := `
 		INSERT INTO radnitokovi (naziv, tip_toka, opis, da_li_je_sablon)

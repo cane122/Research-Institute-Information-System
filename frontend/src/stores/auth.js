@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.uloga === 'admin' || user.value?.naziv_uloge === 'Administrator')
   const isResearcher = computed(() => user.value?.uloga === 'researcher' || user.value?.naziv_uloge === 'Istrazivac')
+  const isManager = computed(() => user.value?.naziv_uloge === 'Rukovodilac projekta' || user.value?.naziv_uloge === 'Administrator')
   const userName = computed(() => {
     if (!user.value) return ''
     return user.value.ime && user.value.prezime 
@@ -190,6 +191,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAdmin,
     isResearcher,
+    isManager,
     userName,
     login,
     logout,

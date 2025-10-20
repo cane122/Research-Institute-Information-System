@@ -18,6 +18,10 @@ export function AskDocumentQuestion(arg1, arg2) {
   return window['go']['main']['App']['AskDocumentQuestion'](arg1, arg2);
 }
 
+export function CheckTaskConditionsFulfilled(arg1) {
+  return window['go']['main']['App']['CheckTaskConditionsFulfilled'](arg1);
+}
+
 export function CheckUserPermission(arg1, arg2) {
   return window['go']['main']['App']['CheckUserPermission'](arg1, arg2);
 }
@@ -182,6 +186,14 @@ export function GetDocumentsByType() {
   return window['go']['main']['App']['GetDocumentsByType']();
 }
 
+export function GetManagerPhaseChangeRequests() {
+  return window['go']['main']['App']['GetManagerPhaseChangeRequests']();
+}
+
+export function GetNextPhaseForTask(arg1) {
+  return window['go']['main']['App']['GetNextPhaseForTask'](arg1);
+}
+
 export function GetOverdueTasksForProject(arg1) {
   return window['go']['main']['App']['GetOverdueTasksForProject'](arg1);
 }
@@ -264,6 +276,10 @@ export function GetWorkflowPhases(arg1) {
 
 export function GetWorkflowTemplates() {
   return window['go']['main']['App']['GetWorkflowTemplates']();
+}
+
+export function HasPendingPhaseChangeRequest(arg1) {
+  return window['go']['main']['App']['HasPendingPhaseChangeRequest'](arg1);
 }
 
 export function LogActivity(arg1) {
