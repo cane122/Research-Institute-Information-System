@@ -114,15 +114,11 @@ const processingRequest = ref(null)
 async function loadRequests() {
   loading.value = true
   try {
-    console.log('🔄 Fetching phase change requests...')
     const { GetManagerPhaseChangeRequests } = window.go.main.App
     const result = await GetManagerPhaseChangeRequests()
-    console.log('📥 Received from backend:', result)
-    console.log('📊 Number of requests:', result ? result.length : 0)
     requests.value = result || []
-    console.log('✅ Requests loaded successfully:', requests.value)
   } catch (error) {
-    console.error('❌ Error loading requests:', error)
+    console.error('Error loading requests:', error)
     alert('Greška pri učitavanju zahteva: ' + (error.message || error))
   } finally {
     loading.value = false

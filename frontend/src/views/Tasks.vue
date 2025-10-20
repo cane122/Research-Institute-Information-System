@@ -428,6 +428,61 @@
             >
           </div>
           
+          <!-- Comments Section -->
+          <div class="form-group-full">
+            <label>Komentari</label>
+            <div class="comments-section">
+              <div class="comments-list" v-if="taskComments.length > 0">
+                <div 
+                  v-for="comment in taskComments" 
+                  :key="comment.id"
+                  class="comment-item"
+                >
+                  <div class="comment-header">
+                    <strong class="comment-author">{{ comment.userName }}</strong>
+                    <div class="comment-header-right">
+                      <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+                      <button 
+                        v-if="canManageProject"
+                        type="button"
+                        class="btn-delete-comment"
+                        @click.stop="removeComment(comment.id)"
+                        title="Obriši komentar"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                  <div class="comment-text">{{ comment.text }}</div>
+                </div>
+              </div>
+              <div v-else-if="!loadingComments" class="no-comments">
+                Nema komentara
+              </div>
+              <div v-if="loadingComments" class="loading-comments">
+                Učitavanje komentara...
+              </div>
+              
+              <!-- Add Comment Form -->
+              <div class="add-comment-form">
+                <textarea 
+                  v-model="newComment"
+                  placeholder="Dodaj komentar..."
+                  rows="3"
+                  :disabled="addingComment"
+                ></textarea>
+                <button 
+                  type="button"
+                  class="btn btn-primary btn-add-comment"
+                  @click="submitComment"
+                  :disabled="!newComment.trim() || addingComment"
+                >
+                  {{ addingComment ? 'Dodavanje...' : '💬 Dodaj komentar' }}
+                </button>
+              </div>
+            </div>
+          </div>
+          
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="closeModals">
               Zatvori
@@ -655,6 +710,61 @@
               >
             </div>
             
+            <!-- Comments Section in Edit Modal -->
+            <div v-if="showEditModal" class="form-group-full">
+              <label>Komentari</label>
+              <div class="comments-section">
+                <div class="comments-list" v-if="taskComments.length > 0">
+                  <div 
+                    v-for="comment in taskComments" 
+                    :key="comment.id"
+                    class="comment-item"
+                  >
+                    <div class="comment-header">
+                      <strong class="comment-author">{{ comment.userName }}</strong>
+                      <div class="comment-header-right">
+                        <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+                        <button 
+                          v-if="canManageProject"
+                          type="button"
+                          class="btn-delete-comment"
+                          @click.stop="removeComment(comment.id)"
+                          title="Obriši komentar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                    <div class="comment-text">{{ comment.text }}</div>
+                  </div>
+                </div>
+                <div v-else-if="!loadingComments" class="no-comments">
+                  Nema komentara
+                </div>
+                <div v-if="loadingComments" class="loading-comments">
+                  Učitavanje komentara...
+                </div>
+                
+                <!-- Add Comment Form -->
+                <div class="add-comment-form">
+                  <textarea 
+                    v-model="newComment"
+                    placeholder="Dodaj komentar..."
+                    rows="3"
+                    :disabled="addingComment"
+                  ></textarea>
+                  <button 
+                    type="button"
+                    class="btn btn-primary btn-add-comment"
+                    @click="submitComment"
+                    :disabled="!newComment.trim() || addingComment"
+                  >
+                    {{ addingComment ? 'Dodavanje...' : '💬 Dodaj komentar' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            
             <div class="form-actions">
               <button type="button" class="btn btn-secondary" @click="closeModals">
                 Otkaži
@@ -686,7 +796,10 @@ import {
   moveTaskToPhase,
   fetchConditionsByPhase,
   fetchConditionAssessmentsByTask,
-  updateConditionAssessment
+  updateConditionAssessment,
+  fetchTaskComments,
+  addTaskComment,
+  deleteTaskComment
 } from '../services/taskService.js'
 
 // Router
@@ -735,6 +848,12 @@ const showPhaseChangeModal = ref(false)
 const nextPhase = ref(null)
 const loadingConditions = ref(false)
 const loadingPhaseChange = ref(false)
+
+// Comments
+const taskComments = ref([])
+const newComment = ref('')
+const loadingComments = ref(false)
+const addingComment = ref(false)
 
 const phaseChangeForm = ref({
   description: ''
@@ -969,6 +1088,9 @@ function selectTask(task) {
   if (task.phaseId) {
     loadPhaseConditionsForTask(task.id, task.phaseId)
   }
+  
+  // Load comments for the task
+  loadTaskComments(task.id)
 }
 
 async function loadPhaseConditions(phaseId) {
@@ -1066,6 +1188,9 @@ function editTask(task) {
   if (task.phaseId) {
     loadPhaseConditionsForTask(task.id, task.phaseId)
   }
+  
+  // Load comments for the task
+  loadTaskComments(task.id)
 }
 
 async function deleteTask(task) {
@@ -1158,6 +1283,8 @@ function closeModals() {
   phaseChangeForm.value = {
     description: ''
   }
+  taskComments.value = []
+  newComment.value = ''
   taskForm.value = {
     title: '',
     description: '',
@@ -1167,6 +1294,68 @@ function closeModals() {
     deadline: '',
     phaseId: null,
     resources: ''
+  }
+}
+
+// Load comments for a task
+async function loadTaskComments(taskId) {
+  if (!taskId) return
+  
+  loadingComments.value = true
+  try {
+    taskComments.value = await fetchTaskComments(taskId)
+    console.log('Loaded comments:', taskComments.value)
+  } catch (error) {
+    console.error('Error loading task comments:', error)
+    taskComments.value = []
+  } finally {
+    loadingComments.value = false
+  }
+}
+
+// Add a new comment to the task
+async function submitComment() {
+  if (!selectedTask.value || !newComment.value.trim()) {
+    return
+  }
+  
+  addingComment.value = true
+  try {
+    await addTaskComment(selectedTask.value.id, newComment.value.trim())
+    
+    // Reload comments
+    await loadTaskComments(selectedTask.value.id)
+    
+    // Clear the input
+    newComment.value = ''
+    
+    console.log('Comment added successfully')
+  } catch (error) {
+    console.error('Error adding comment:', error)
+    alert('Greška pri dodavanju komentara: ' + (error.message || 'Nepoznata greška'))
+  } finally {
+    addingComment.value = false
+  }
+}
+
+// Delete a comment (only for project managers)
+async function removeComment(commentId) {
+  if (!confirm('Da li ste sigurni da želite da obrišete ovaj komentar?')) {
+    return
+  }
+  
+  try {
+    await deleteTaskComment(commentId)
+    
+    // Reload comments
+    if (selectedTask.value) {
+      await loadTaskComments(selectedTask.value.id)
+    }
+    
+    console.log('Comment deleted successfully')
+  } catch (error) {
+    console.error('Error deleting comment:', error)
+    alert('Greška pri brisanju komentara: ' + (error.message || 'Nepoznata greška'))
   }
 }
 
@@ -1806,6 +1995,160 @@ onMounted(async () => {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   text-align: center;
+}
+
+/* Comments Section */
+.comments-section {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.comments-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comments-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: #ecf0f1;
+  border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: #bdc3c7;
+  border-radius: 4px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: #95a5a6;
+}
+
+.comment-item {
+  background: white;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.comment-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-author {
+  font-size: 13px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.comment-date {
+  font-size: 11px;
+  color: #95a5a6;
+}
+
+.btn-delete-comment {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  opacity: 0.6;
+}
+
+.btn-delete-comment:hover {
+  opacity: 1;
+  background: #fee;
+  transform: scale(1.1);
+}
+
+.btn-delete-comment:active {
+  transform: scale(0.95);
+}
+
+.comment-text {
+  font-size: 14px;
+  color: #34495e;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.no-comments {
+  color: #95a5a6;
+  font-size: 14px;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.loading-comments {
+  color: #3498db;
+  font-size: 14px;
+  padding: 20px;
+  text-align: center;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+}
+
+.add-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.add-comment-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.3s;
+}
+
+.add-comment-form textarea:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.add-comment-form textarea:disabled {
+  background: #f8f9fa;
+  cursor: not-allowed;
+}
+
+.btn-add-comment {
+  align-self: flex-start;
+  padding: 8px 16px;
+  font-size: 14px;
 }
 
 

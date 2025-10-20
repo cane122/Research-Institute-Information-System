@@ -90,6 +90,10 @@ export function DeleteTask(arg1) {
   return window['go']['main']['App']['DeleteTask'](arg1);
 }
 
+export function DeleteTaskComment(arg1) {
+  return window['go']['main']['App']['DeleteTaskComment'](arg1);
+}
+
 export function DeleteWorkflow(arg1) {
   return window['go']['main']['App']['DeleteWorkflow'](arg1);
 }

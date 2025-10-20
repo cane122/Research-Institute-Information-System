@@ -12,7 +12,10 @@ import {
   GetConditionsByPhase,
   GetConditionAssessmentsByTask,
   CreateOrUpdateConditionAssessment,
-  GetConditionFulfillmentStatus
+  GetConditionFulfillmentStatus,
+  GetTaskComments,
+  AddTaskComment,
+  DeleteTaskComment
 } from '../../wailsjs/go/main/App.js'
 
 /**
@@ -328,5 +331,58 @@ export async function fetchConditionFulfillmentStatus(taskId) {
   } catch (error) {
     console.error('Error fetching condition fulfillment status:', error)
     return null
+  }
+}
+
+/**
+ * Fetches comments for a task
+ */
+export async function fetchTaskComments(taskId) {
+  try {
+    if (!taskId) return []
+    const comments = await GetTaskComments(taskId)
+    return (comments || []).map(c => ({
+      id: c.komentar_id,
+      taskId: c.zadatak_id,
+      userId: c.korisnik_id,
+      text: c.tekst_komentara,
+      createdAt: c.datuma_kreiranja,
+      userName: c.ime_korisnika || 'Unknown User'
+    }))
+  } catch (error) {
+    console.error('Error fetching task comments:', error)
+    return []
+  }
+}
+
+/**
+ * Adds a comment to a task
+ */
+export async function addTaskComment(taskId, comment) {
+  try {
+    if (!taskId || !comment) {
+      throw new Error('Task ID and comment text are required')
+    }
+    await AddTaskComment(taskId, comment)
+    return true
+  } catch (error) {
+    console.error('Error adding task comment:', error)
+    throw error
+  }
+}
+
+/**
+ * Deletes a comment from a task
+ */
+export async function deleteTaskComment(commentId) {
+  try {
+    if (!commentId) {
+      throw new Error('Comment ID is required')
+    }
+    await DeleteTaskComment(commentId)
+    return true
+  } catch (error) {
+    console.error('Error deleting task comment:', error)
+    throw error
   }
 }

@@ -47,6 +47,8 @@ export function DeleteProject(arg1:number):Promise<void>;
 
 export function DeleteTask(arg1:number):Promise<void>;
 
+export function DeleteTaskComment(arg1:number):Promise<void>;
+
 export function DeleteWorkflow(arg1:number):Promise<void>;
 
 export function GenerateDescriptionFromText(arg1:string,arg2:string,arg3:string):Promise<string>;

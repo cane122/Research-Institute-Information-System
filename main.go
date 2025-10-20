@@ -1204,6 +1204,21 @@ func (a *App) AddTaskComment(taskID int, comment string) error {
 	return a.taskService.AddTaskComment(taskID, a.currentUser.KorisnikID, comment)
 }
 
+// DeleteTaskComment deletes a comment from a task
+func (a *App) DeleteTaskComment(commentID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	if a.taskService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get comment service to delete the comment
+	commentService := services.NewCommentService(a.db)
+	return commentService.Delete(commentID)
+}
+
 // MoveTaskToPhase moves a task to a different phase
 func (a *App) MoveTaskToPhase(taskID, newPhaseID int) error {
 	if a.currentUser == nil {
@@ -1433,52 +1448,36 @@ func (a *App) GetManagerPhaseChangeRequests() ([]map[string]interface{}, error) 
 		return nil, errors.New("samo rukovodilac projekta može videti zahteve")
 	}
 
-	fmt.Printf("🔍 Loading requests for user: %d (%s)\n", a.currentUser.KorisnikID, a.currentUser.KorisnickoIme)
-
 	// Get projects where user is the leader
 	projects, err := a.projectRepo.GetByUserID(a.currentUser.KorisnikID)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("📁 Found %d projects for user\n", len(projects))
-
 	var allRequests []map[string]interface{}
 
 	// Get phase change requests for each project
 	for _, project := range projects {
-		fmt.Printf("  📂 Checking project %d (%s), Leader ID: %v\n", project.ProjekatID, project.NazivProjekta, project.RukovodilaID)
-		
 		// Only include projects where user is the leader
 		if project.RukovodilaID == nil || *project.RukovodilaID != a.currentUser.KorisnikID {
-			fmt.Printf("    ❌ Skipping - user is not the leader\n")
 			continue
 		}
-
-		fmt.Printf("    ✅ User is the leader - checking requests\n")
 
 		requests, err := a.taskService.GetPhaseChangeRequests(&project.ProjekatID, nil)
 		if err != nil {
-			fmt.Printf("    ⚠️  Error getting requests: %v\n", err)
 			continue
 		}
 
-		fmt.Printf("    📋 Found %d requests for this project\n", len(requests))
-
 		// Enrich requests with additional info
 		for _, request := range requests {
-			fmt.Printf("      🔸 Request %d - Status: %s\n", request.ZahtevID, request.Status)
-			
 			// Only include pending requests (check both variants)
 			if request.Status != "Na cekanju" && request.Status != "na čekanju" {
-				fmt.Printf("        ⏭️  Skipping - not pending (status: %s)\n", request.Status)
 				continue
 			}
 
 			// Get task details
 			task, err := a.taskService.GetTaskByID(request.ZadatakID)
 			if err != nil {
-				fmt.Printf("        ⚠️  Error getting task: %v\n", err)
 				continue
 			}
 
@@ -1511,12 +1510,10 @@ func (a *App) GetManagerPhaseChangeRequests() ([]map[string]interface{}, error) 
 				"datum_kreiranja":       request.DatumKreiranja,
 			}
 
-			fmt.Printf("        ✅ Added request: %s\n", task.NazivZadatka)
 			allRequests = append(allRequests, enrichedRequest)
 		}
 	}
 
-	fmt.Printf("📊 Total requests to return: %d\n", len(allRequests))
 	return allRequests, nil
 }
 
