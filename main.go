@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cane/research-institute-system/backend/models"
@@ -41,6 +42,7 @@ type App struct {
 	userRepo         *repositories.UserRepository
 	projectRepo      *repositories.ProjectRepository
 	currentUser      *models.User
+	zadacicService   *services.ZadacicService
 }
 
 // NewApp creates a new App application struct
@@ -195,15 +197,55 @@ func (a *App) initializeDatabase() {
 	a.docVersionSvc = services.NewDocumentVersionService(db)
 	a.llmService = services.NewLLMService()
 	a.analyticsService = services.NewAnalyticsService(db)
+	a.zadacicService = services.NewZadacicService(db)
+}
 
-	// Check if OpenAI API key is configured
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey != "" {
-		log.Printf("✅ OpenAI API key configured")
-		a.llmService.SetAPIKey(apiKey)
-	} else {
-		log.Printf("⚠️  OpenAI API key not found. Set OPENAI_API_KEY environment variable to use LLM features.")
+// ===================== Zadacici (Checklist) =====================
+func (a *App) ListZadaciciByDocument(documentID int) ([]models.Zadacic, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
 	}
+	if a.zadacicService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	return a.zadacicService.ListByDocument(documentID)
+}
+
+func (a *App) AddZadacic(z models.Zadacic) (int, error) {
+	if a.currentUser == nil {
+		return 0, errors.New("niste prijavljeni")
+	}
+	if a.zadacicService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	if z.Opis == "" || z.DokumentID == 0 {
+		return 0, errors.New("Opis i dokument su obavezni")
+	}
+	z.Izvrsen = false
+	if err := a.zadacicService.Add(&z); err != nil {
+		return 0, err
+	}
+	return z.ZadacicID, nil
+}
+
+func (a *App) UpdateZadacicStatus(zadacicID int, izvrsen bool) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+	if a.zadacicService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+	return a.zadacicService.UpdateStatus(zadacicID, izvrsen)
+}
+
+func (a *App) DeleteZadacic(zadacicID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+	if a.zadacicService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+	return a.zadacicService.Delete(zadacicID)
 }
 
 // ============================================================================
@@ -289,6 +331,24 @@ func (a *App) DeletePhase(phaseID int) error {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
 	return a.workflowService.DeletePhase(phaseID)
+}
+
+// CreateWorkflowWithPhasesRequest represents the request to create a workflow with phases
+type CreateWorkflowWithPhasesRequest struct {
+	Naziv   string   `json:"naziv"`
+	TipToka string   `json:"tip_toka"`
+	Faze    []string `json:"faze"`
+}
+
+// CreateWorkflowWithPhases creates a new workflow with phases in one transaction
+func (a *App) CreateWorkflowWithPhases(req CreateWorkflowWithPhasesRequest) (int, error) {
+	if a.currentUser == nil {
+		return 0, errors.New("niste prijavljeni")
+	}
+	if a.workflowService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	return a.workflowService.CreateWorkflowWithPhases(req.Naziv, req.TipToka, req.Faze)
 }
 
 // ============================================================================
@@ -378,6 +438,7 @@ func (a *App) DeleteTag(id int) error {
 // Phase Change Requests
 // ============================================================================
 
+// List phase change requests by task
 func (a *App) ListPhaseChangeRequests(taskID int) ([]models.ZahteviPromeneFaze, error) {
 	if a.currentUser == nil {
 		return nil, errors.New("niste prijavljeni")
@@ -388,6 +449,18 @@ func (a *App) ListPhaseChangeRequests(taskID int) ([]models.ZahteviPromeneFaze, 
 	return a.phaseReqService.ListByTask(taskID)
 }
 
+// List phase change requests by document
+func (a *App) ListPhaseChangeRequestsByDocument(documentID int) ([]models.ZahteviPromeneFaze, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+	if a.phaseReqService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	return a.phaseReqService.ListByDocument(documentID)
+}
+
+// Create phase change request (for task or document)
 func (a *App) CreatePhaseChangeRequest(req models.ZahteviPromeneFaze) (int, error) {
 	if a.currentUser == nil {
 		return 0, errors.New("niste prijavljeni")
@@ -396,6 +469,10 @@ func (a *App) CreatePhaseChangeRequest(req models.ZahteviPromeneFaze) (int, erro
 		return 0, errors.New("sistem nije povezan sa bazom podataka")
 	}
 	req.PodnosilacZahtevaID = a.currentUser.KorisnikID
+	// If both IDs are nil, reject
+	if req.ZadatakID == nil && req.DokumentID == nil {
+		return 0, errors.New("Mora biti prosleđen zadatak_id ili dokument_id")
+	}
 	if err := a.phaseReqService.Create(&req); err != nil {
 		return 0, err
 	}
@@ -403,13 +480,53 @@ func (a *App) CreatePhaseChangeRequest(req models.ZahteviPromeneFaze) (int, erro
 }
 
 func (a *App) UpdatePhaseChangeRequestStatus(id int, status string, komentar *string) error {
-	if a.currentUser == nil || a.currentUser.NazivUloge != "Administrator" {
+	if a.currentUser == nil {
+		return errors.New("nemate dozvolu")
+	}
+	// Allow administrators and project leaders
+	role := strings.ToLower(a.currentUser.NazivUloge)
+	if role != "administrator" && role != "rukovodilac projekta" {
 		return errors.New("nemate dozvolu")
 	}
 	if a.phaseReqService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-	return a.phaseReqService.UpdateStatus(id, status, komentar)
+
+	// Get the request details first
+	request, err := a.phaseReqService.GetByID(id)
+	if err != nil {
+		return fmt.Errorf("greška pri preuzimanju zahteva: %v", err)
+	}
+
+	// Update the request status
+	if err := a.phaseReqService.UpdateStatus(id, status, komentar); err != nil {
+		return err
+	}
+
+	// If approved and it's a document request, update the document's phase
+	if strings.ToLower(status) == "odobren" && request.DokumentID != nil {
+		// Get current document to find old phase
+		doc, err := a.documentService.GetDocumentByID(*request.DokumentID)
+		if err != nil {
+			return fmt.Errorf("greška pri preuzimanju dokumenta: %v", err)
+		}
+
+		// Update document's current phase
+		_, err = a.db.Exec(`UPDATE dokumenti SET trenutna_faza_id = $1, poslednja_izmena = CURRENT_TIMESTAMP WHERE dokument_id = $2`,
+			request.ZahtevanaFazaID, *request.DokumentID)
+		if err != nil {
+			return fmt.Errorf("greška pri ažuriranju faze dokumenta: %v", err)
+		}
+
+		// Add entry to phase history
+		_, err = a.db.Exec(`INSERT INTO istorijafazadokumenta (dokument_id, prethodna_faza_id, nova_faza_id, korisnik_id) VALUES ($1, $2, $3, $4)`,
+			*request.DokumentID, doc.TrenutnaFazaID, request.ZahtevanaFazaID, a.currentUser.KorisnikID)
+		if err != nil {
+			return fmt.Errorf("greška pri čuvanju istorije faza: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func (a *App) DeletePhaseChangeRequest(id int) error {
@@ -420,6 +537,45 @@ func (a *App) DeletePhaseChangeRequest(id int) error {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
 	return a.phaseReqService.Delete(id)
+}
+
+// ChangeDocumentPhase directly changes a document's phase (leader/admin only, no request approval needed)
+func (a *App) ChangeDocumentPhase(documentID int, newPhaseID int) error {
+	if a.currentUser == nil {
+		return errors.New("niste prijavljeni")
+	}
+
+	// Allow administrators and project leaders
+	role := strings.ToLower(a.currentUser.NazivUloge)
+	if role != "administrator" && role != "rukovodilac projekta" {
+		return errors.New("nemate dozvolu za direktnu promenu faze")
+	}
+
+	if a.documentService == nil {
+		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get current document to find old phase
+	doc, err := a.documentService.GetDocumentByID(documentID)
+	if err != nil {
+		return fmt.Errorf("greška pri preuzimanju dokumenta: %v", err)
+	}
+
+	// Update document's current phase
+	_, err = a.db.Exec(`UPDATE dokumenti SET trenutna_faza_id = $1, poslednja_izmena = CURRENT_TIMESTAMP WHERE dokument_id = $2`,
+		newPhaseID, documentID)
+	if err != nil {
+		return fmt.Errorf("greška pri ažuriranju faze dokumenta: %v", err)
+	}
+
+	// Add entry to phase history
+	_, err = a.db.Exec(`INSERT INTO istorijafazadokumenta (dokument_id, prethodna_faza_id, nova_faza_id, korisnik_id) VALUES ($1, $2, $3, $4)`,
+		documentID, doc.TrenutnaFazaID, newPhaseID, a.currentUser.KorisnikID)
+	if err != nil {
+		return fmt.Errorf("greška pri čuvanju istorije faza: %v", err)
+	}
+
+	return nil
 }
 
 // ============================================================================
@@ -503,6 +659,25 @@ func (a *App) DeleteDocumentVersion(versionID int, documentID int) error {
 		return errors.New("nemate dozvolu za brisanje")
 	}
 	return a.docVersionSvc.Delete(versionID)
+}
+
+// UploadDocumentVersion creates a new version for a document
+func (a *App) UploadDocumentVersion(documentID int, versionLabel *string, fileData []byte, originalFileName string) (int, error) {
+	if a.currentUser == nil {
+		return 0, errors.New("niste prijavljeni")
+	}
+	if a.documentService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	// Permission: require write
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "write")
+	if err != nil {
+		return 0, err
+	}
+	if !ok {
+		return 0, errors.New("nemate dozvolu za izmene dokumenta")
+	}
+	return a.documentService.SaveNewVersion(documentID, a.currentUser.KorisnikID, versionLabel, fileData, originalFileName)
 }
 
 // Login authenticates a user
@@ -627,6 +802,19 @@ func (a *App) GetAllUsers() ([]models.User, error) {
 	return a.userRepo.GetAll()
 }
 
+// GetAllUsersForDocuments returns all users for document permission assignment (any logged-in user)
+func (a *App) GetAllUsersForDocuments() ([]models.User, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.userRepo == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.userRepo.GetAll()
+}
+
 // GetUserProjects returns projects for the current user
 func (a *App) GetUserProjects() ([]models.Project, error) {
 	if a.currentUser == nil {
@@ -700,8 +888,7 @@ func (a *App) GetAllDocuments() ([]models.Dokumenti, error) {
 	if a.documentService == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-
-	return a.documentService.GetAllDocuments()
+	return a.documentService.GetAllDocuments(a.currentUser.KorisnikID)
 }
 
 // GetAllTags returns all available tags from the database
@@ -726,50 +913,15 @@ func (a *App) GetDocumentByID(documentID int) (models.Dokumenti, error) {
 	if a.documentService == nil {
 		return models.Dokumenti{}, errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Require read permission
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return models.Dokumenti{}, err
+	}
+	if !ok {
+		return models.Dokumenti{}, errors.New("nemate dozvolu za pregled ovog dokumenta")
+	}
 	return a.documentService.GetDocumentByID(documentID)
-}
-
-// GetDocumentPhases returns all phases for the document's workflow, marks current phase
-func (a *App) GetDocumentPhases(documentID int) ([]models.Faze, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.documentService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	doc, err := a.documentService.GetDocumentByID(documentID)
-	if err != nil {
-		return nil, err
-	}
-	if doc.RadniTokID == nil {
-		return nil, errors.New("dokument nema radni tok")
-	}
-	return a.workflowService.GetWorkflowPhases(*doc.RadniTokID)
-}
-
-// GetDocumentUsers returns all users with permissions on the document
-func (a *App) GetDocumentUsers(documentID int) ([]models.User, error) {
-	if a.currentUser == nil {
-		return nil, errors.New("niste prijavljeni")
-	}
-	if a.documentService == nil {
-		return nil, errors.New("sistem nije povezan sa bazom podataka")
-	}
-	perms, err := a.documentService.GetDocumentPermissions(documentID)
-	if err != nil {
-		return nil, err
-	}
-	var users []models.User
-	for _, p := range perms {
-		users = append(users, models.User{
-			KorisnikID: p.KorisnikID,
-			KorisnickoIme: p.KorisnickoIme,
-			Ime: &p.Ime,
-			Prezime: &p.Prezime,
-		})
-	}
-	return users, nil
 }
 
 // GetDocumentVersions returns all versions of a document
@@ -781,8 +933,49 @@ func (a *App) GetDocumentVersions(documentID int) ([]models.VerzijeDokumenata, e
 	if a.documentService == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Require read permission
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("nemate dozvolu za pregled verzija")
+	}
 	return a.documentService.GetDocumentVersions(documentID)
+}
+
+// DownloadDocumentVersion reads file content for a specific version
+func (a *App) DownloadDocumentVersion(versionID int) ([]byte, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Get version info to get file path
+	version, err := a.docVersionSvc.GetByID(versionID)
+	if err != nil {
+		return nil, fmt.Errorf("verzija nije pronađena: %w", err)
+	}
+
+	// Require read permission for the owning document
+	ok, err := a.documentService.CheckUserPermission(version.DokumentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("nemate dozvolu za preuzimanje ovog dokumenta")
+	}
+
+	// Read file from disk
+	fileData, err := os.ReadFile(version.PutanjaDoFajla)
+	if err != nil {
+		return nil, fmt.Errorf("greška pri čitanju fajla: %w", err)
+	}
+
+	return fileData, nil
 }
 
 // GetDocumentTags returns all tags for a document
@@ -794,7 +987,14 @@ func (a *App) GetDocumentTags(documentID int) ([]models.Tagovi, error) {
 	if a.documentService == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Require read permission
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.New("nemate dozvolu za pregled tagova")
+	}
 	return a.documentService.GetDocumentTags(documentID)
 }
 
@@ -808,7 +1008,136 @@ func (a *App) UploadDocument(req models.UploadDocumentRequest, fileData []byte, 
 		return 0, errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// If document is being added to a project, only project leader or admin can add
+	if req.ProjekatID != nil {
+		if a.projectRepo == nil {
+			return 0, errors.New("sistem nije povezan sa bazom podataka")
+		}
+		proj, err := a.projectRepo.GetByID(*req.ProjekatID)
+		if err != nil {
+			return 0, err
+		}
+		isLeader := proj.RukovodilaID != nil && *proj.RukovodilaID == a.currentUser.KorisnikID
+		isAdmin := a.currentUser.NazivUloge == "Administrator"
+		if !isLeader && !isAdmin {
+			return 0, errors.New("samo rukovodilac projekta ili administrator mogu da dodaju dokument")
+		}
+	}
+
 	return a.documentService.UploadDocument(req, fileData, fileName, a.currentUser.KorisnikID)
+}
+
+// CanAddProjectDocument returns whether the current user can add a document to the given project
+func (a *App) CanAddProjectDocument(projectID int) (bool, error) {
+	if a.currentUser == nil {
+		return false, errors.New("niste prijavljeni")
+	}
+	if a.projectRepo == nil {
+		return false, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	proj, err := a.projectRepo.GetByID(projectID)
+	if err != nil {
+		return false, err
+	}
+	if proj.RukovodilaID != nil && *proj.RukovodilaID == a.currentUser.KorisnikID {
+		return true, nil
+	}
+	if a.currentUser.NazivUloge == "Administrator" {
+		return true, nil
+	}
+	return false, nil
+}
+
+// CreateDocumentWithPermissionsRequest represents the request to create a document with user permissions
+type CreateDocumentWithPermissionsRequest struct {
+	NazivDokumenta   string  `json:"naziv_dokumenta"`
+	ProjekatID       int     `json:"projekat_id"`
+	RadniTokID       int     `json:"radni_tok_id"`
+	Opis             *string `json:"opis"`
+	Rok              *string `json:"rok"`
+	KorisniciDozvole []int   `json:"korisnici_dozvole"`
+}
+
+// CreateDocumentWithPermissions creates a new document with file and sets permissions for specified users
+func (a *App) CreateDocumentWithPermissions(req CreateDocumentWithPermissionsRequest, fileData []byte, fileName string) (int, error) {
+	if a.currentUser == nil {
+		return 0, errors.New("niste prijavljeni")
+	}
+	if a.documentService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user can add document to this project
+	if a.projectRepo == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+	proj, err := a.projectRepo.GetByID(req.ProjekatID)
+	if err != nil {
+		return 0, err
+	}
+	isLeader := proj.RukovodilaID != nil && *proj.RukovodilaID == a.currentUser.KorisnikID
+	isAdmin := a.currentUser.NazivUloge == "Administrator"
+	if !isLeader && !isAdmin {
+		return 0, errors.New("samo rukovodilac projekta ili administrator mogu da dodaju dokument")
+	}
+
+	// Get first phase of the workflow
+	var firstPhaseID *int
+	if req.RadniTokID > 0 {
+		phases, err := a.workflowService.GetWorkflowPhases(req.RadniTokID)
+		if err == nil && len(phases) > 0 {
+			firstPhaseID = &phases[0].FazaID
+		}
+	}
+
+	// Create upload request
+	opis := ""
+	if req.Opis != nil {
+		opis = *req.Opis
+	}
+	uploadReq := models.UploadDocumentRequest{
+		NazivDokumenta: req.NazivDokumenta,
+		ProjekatID:     &req.ProjekatID,
+		Opis:           opis,
+		TipDokumenta:   "Dokument", // Default type
+		JezikDokumenta: "Srpski",   // Default language
+	}
+
+	// Upload document
+	documentID, err := a.documentService.UploadDocument(uploadReq, fileData, fileName, a.currentUser.KorisnikID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Set workflow and phase if provided
+	if req.RadniTokID > 0 && firstPhaseID != nil {
+		updateQuery := `UPDATE dokumenti SET radni_tok_id = $1, trenutna_faza_id = $2 WHERE dokument_id = $3`
+		_, err = a.db.Exec(updateQuery, req.RadniTokID, firstPhaseID, documentID)
+		if err != nil {
+			log.Printf("Warning: failed to set workflow/phase: %v", err)
+		}
+	}
+
+	// Set permissions for specified users (give them full access: read, write, delete)
+	log.Printf("Setting permissions for document %d, users: %v", documentID, req.KorisniciDozvole)
+	for _, userID := range req.KorisniciDozvole {
+		permReq := models.DocumentPermissionRequest{
+			DokumentID:  documentID,
+			KorisnikID:  userID,
+			MozeCitati:  true,
+			MozeMenjati: true,
+			MozeBrisati: true,
+		}
+		log.Printf("Setting permission for user %d on document %d", userID, documentID)
+		if err := a.documentService.SetDocumentPermission(permReq); err != nil {
+			log.Printf("ERROR: failed to set permission for user %d: %v", userID, err)
+		} else {
+			log.Printf("SUCCESS: permission set for user %d on document %d", userID, documentID)
+		}
+	}
+
+	log.Printf("Document %d created successfully with %d user permissions", documentID, len(req.KorisniciDozvole))
+	return documentID, nil
 }
 
 // UpdateDocument updates an existing document
@@ -820,7 +1149,14 @@ func (a *App) UpdateDocument(documentID int, req models.UploadDocumentRequest) e
 	if a.documentService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Require write permission
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "write")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("nemate dozvolu za izmenu dokumenta")
+	}
 	return a.documentService.UpdateDocument(documentID, req)
 }
 
@@ -833,7 +1169,14 @@ func (a *App) DeleteDocument(documentID int) error {
 	if a.documentService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Require delete permission
+	ok, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "delete")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("nemate dozvolu za brisanje dokumenta")
+	}
 	return a.documentService.DeleteDocument(documentID)
 }
 
@@ -845,7 +1188,35 @@ func (a *App) GetProjectDocuments(projectID int) ([]models.Dokumenti, error) {
 	if a.documentService == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
-	return a.documentService.GetDocumentsByProject(projectID)
+	// List only documents the user can read
+	docs, err := a.documentService.GetDocumentsByProject(projectID, a.currentUser.KorisnikID)
+	if err != nil {
+		return nil, err
+	}
+	// For each document, calculate progress (percentage of completed zadacici)
+	for i := range docs {
+		zadacici, err := a.zadacicService.ListByDocument(docs[i].DokumentID)
+		if err != nil {
+			// If error, just skip progress for this document
+			docs[i].Progres = nil
+			continue
+		}
+		total := len(zadacici)
+		if total == 0 {
+			zero := 0
+			docs[i].Progres = &zero
+			continue
+		}
+		completed := 0
+		for _, z := range zadacici {
+			if z.Izvrsen {
+				completed++
+			}
+		}
+		percent := int((float64(completed) / float64(total)) * 100)
+		docs[i].Progres = &percent
+	}
+	return docs, nil
 }
 
 // ============================================================================
@@ -862,6 +1233,24 @@ func (a *App) GetDocumentPermissions(documentID int) ([]models.DocumentPermissio
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// Check if user is owner/leader/admin OR has read permission
+	allowed, err := a.documentService.IsOwnerAdminOrLeader(documentID, a.currentUser.KorisnikID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !allowed {
+		// If not owner/leader/admin, check if user has read access to the document
+		hasAccess, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+		if err != nil {
+			return nil, err
+		}
+		if !hasAccess {
+			return nil, errors.New("nemate dozvolu za pregled ovog dokumenta")
+		}
+	}
+
+	// User has access to the document, so they can see all permissions
 	return a.documentService.GetDocumentPermissions(documentID)
 }
 
@@ -874,7 +1263,14 @@ func (a *App) SetDocumentPermission(req models.DocumentPermissionRequest) error 
 	if a.documentService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Only owner/leader/admin may modify permissions
+	allowed, err := a.documentService.IsOwnerAdminOrLeader(req.DokumentID, a.currentUser.KorisnikID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return errors.New("nemate dozvolu za izmenu dozvola")
+	}
 	return a.documentService.SetDocumentPermission(req)
 }
 
@@ -887,7 +1283,14 @@ func (a *App) RemoveDocumentPermission(documentID int, userID int) error {
 	if a.documentService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
-
+	// Only owner/leader/admin may modify permissions
+	allowed, err := a.documentService.IsOwnerAdminOrLeader(documentID, a.currentUser.KorisnikID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return errors.New("nemate dozvolu za izmenu dozvola")
+	}
 	return a.documentService.RemoveDocumentPermission(documentID, userID)
 }
 

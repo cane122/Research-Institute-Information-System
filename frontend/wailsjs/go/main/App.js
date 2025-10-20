@@ -10,8 +10,20 @@ export function AddDocumentVersion(arg1) {
   return window['go']['main']['App']['AddDocumentVersion'](arg1);
 }
 
+export function AddZadacic(arg1) {
+  return window['go']['main']['App']['AddZadacic'](arg1);
+}
+
 export function AskDocumentQuestion(arg1, arg2) {
   return window['go']['main']['App']['AskDocumentQuestion'](arg1, arg2);
+}
+
+export function CanAddProjectDocument(arg1) {
+  return window['go']['main']['App']['CanAddProjectDocument'](arg1);
+}
+
+export function ChangeDocumentPhase(arg1, arg2) {
+  return window['go']['main']['App']['ChangeDocumentPhase'](arg1, arg2);
 }
 
 export function CheckUserPermission(arg1, arg2) {
@@ -20,6 +32,10 @@ export function CheckUserPermission(arg1, arg2) {
 
 export function CompleteFirstTimeSetup(arg1, arg2) {
   return window['go']['main']['App']['CompleteFirstTimeSetup'](arg1, arg2);
+}
+
+export function CreateDocumentWithPermissions(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateDocumentWithPermissions'](arg1, arg2, arg3);
 }
 
 export function CreatePhase(arg1) {
@@ -48,6 +64,10 @@ export function CreateUser(arg1, arg2) {
 
 export function CreateWorkflow(arg1) {
   return window['go']['main']['App']['CreateWorkflow'](arg1);
+}
+
+export function CreateWorkflowWithPhases(arg1) {
+  return window['go']['main']['App']['CreateWorkflowWithPhases'](arg1);
 }
 
 export function DeleteDocument(arg1) {
@@ -82,6 +102,14 @@ export function DeleteWorkflow(arg1) {
   return window['go']['main']['App']['DeleteWorkflow'](arg1);
 }
 
+export function DeleteZadacic(arg1) {
+  return window['go']['main']['App']['DeleteZadacic'](arg1);
+}
+
+export function DownloadDocumentVersion(arg1) {
+  return window['go']['main']['App']['DownloadDocumentVersion'](arg1);
+}
+
 export function GenerateDescriptionFromText(arg1, arg2, arg3) {
   return window['go']['main']['App']['GenerateDescriptionFromText'](arg1, arg2, arg3);
 }
@@ -114,6 +142,10 @@ export function GetAllUsers() {
   return window['go']['main']['App']['GetAllUsers']();
 }
 
+export function GetAllUsersForDocuments() {
+  return window['go']['main']['App']['GetAllUsersForDocuments']();
+}
+
 export function GetAllWorkflows() {
   return window['go']['main']['App']['GetAllWorkflows']();
 }
@@ -134,10 +166,6 @@ export function GetDocumentPhaseHistory(arg1) {
   return window['go']['main']['App']['GetDocumentPhaseHistory'](arg1);
 }
 
-export function GetDocumentPhases(arg1) {
-  return window['go']['main']['App']['GetDocumentPhases'](arg1);
-}
-
 export function GetDocumentStatistics() {
   return window['go']['main']['App']['GetDocumentStatistics']();
 }
@@ -148,10 +176,6 @@ export function GetDocumentTags(arg1) {
 
 export function GetDocumentTrends(arg1) {
   return window['go']['main']['App']['GetDocumentTrends'](arg1);
-}
-
-export function GetDocumentUsers(arg1) {
-  return window['go']['main']['App']['GetDocumentUsers'](arg1);
 }
 
 export function GetDocumentVersions(arg1) {
@@ -194,8 +218,16 @@ export function ListPhaseChangeRequests(arg1) {
   return window['go']['main']['App']['ListPhaseChangeRequests'](arg1);
 }
 
+export function ListPhaseChangeRequestsByDocument(arg1) {
+  return window['go']['main']['App']['ListPhaseChangeRequestsByDocument'](arg1);
+}
+
 export function ListRoles() {
   return window['go']['main']['App']['ListRoles']();
+}
+
+export function ListZadaciciByDocument(arg1) {
+  return window['go']['main']['App']['ListZadaciciByDocument'](arg1);
 }
 
 export function LogActivity(arg1) {
@@ -254,6 +286,14 @@ export function UpdateWorkflow(arg1) {
   return window['go']['main']['App']['UpdateWorkflow'](arg1);
 }
 
+export function UpdateZadacicStatus(arg1, arg2) {
+  return window['go']['main']['App']['UpdateZadacicStatus'](arg1, arg2);
+}
+
 export function UploadDocument(arg1, arg2, arg3) {
   return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3);
+}
+
+export function UploadDocumentVersion(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UploadDocumentVersion'](arg1, arg2, arg3, arg4);
 }

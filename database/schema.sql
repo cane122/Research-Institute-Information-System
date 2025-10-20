@@ -100,16 +100,19 @@ CREATE TABLE KomentariZadataka (
     FOREIGN KEY (korisnik_id) REFERENCES Korisnici(korisnik_id)
 );
 
--- Table for recording phase change requests from Researchers
+
+-- Table for recording phase change requests from Researchers (for tasks OR documents)
 CREATE TABLE ZahteviPromeneFaze (
     zahtev_id SERIAL PRIMARY KEY,
-    zadatak_id INT NOT NULL,
+    zadatak_id INT NULL,
+    dokument_id INT NULL,
     podnosilac_zahteva_id INT NOT NULL,
     zahtevana_faza_id INT NOT NULL,
     status VARCHAR(50) DEFAULT 'Na cekanju', -- e.g., 'Na cekanju', 'Odobren', 'Odbijen'
     komentar TEXT,
     datum_kreiranja TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (zadatak_id) REFERENCES Zadaci(zadatak_id) ON DELETE CASCADE,
+    FOREIGN KEY (dokument_id) REFERENCES Dokumenti(dokument_id) ON DELETE CASCADE,
     FOREIGN KEY (podnosilac_zahteva_id) REFERENCES Korisnici(korisnik_id),
     FOREIGN KEY (zahtevana_faza_id) REFERENCES Faze(faza_id)
 );

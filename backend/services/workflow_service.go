@@ -128,3 +128,39 @@ func (s *WorkflowService) DeletePhase(phaseID int) error {
 	_, err := s.db.Exec(`DELETE FROM faze WHERE faza_id = $1`, phaseID)
 	return err
 }
+
+// CreateWorkflowWithPhases creates a workflow and its phases in one transaction
+func (s *WorkflowService) CreateWorkflowWithPhases(naziv string, tipToka string, faze []string) (int, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	// Insert workflow
+	var workflowID int
+	wfQuery := `
+		INSERT INTO radnitokovi (naziv, tip_toka, da_li_je_sablon)
+		VALUES ($1, $2, TRUE)
+		RETURNING radni_tok_id
+	`
+	err = tx.QueryRow(wfQuery, naziv, tipToka).Scan(&workflowID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Insert phases
+	phaseQuery := `INSERT INTO faze (radni_tok_id, naziv_faze, redosled) VALUES ($1, $2, $3)`
+	for i, fazaNaziv := range faze {
+		_, err = tx.Exec(phaseQuery, workflowID, fazaNaziv, i+1)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return workflowID, nil
+}

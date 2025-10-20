@@ -158,6 +158,13 @@
                   <strong>Delete:</strong> {{ permissions.delete ? 'Yes' : 'No' }}
                 </div>
               </div>
+              
+              <!-- Phase Change Request Button (for researchers only) -->
+              <div class="phase-change-section" v-if="canRequestPhaseChange && document?.radni_tok_id">
+                <button class="btn btn-phase-change" @click="goToPhaseChangeRequest">
+                  🔄 Zahtevaj promenu faze
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -182,15 +189,7 @@
           </button>
         </div>
       </div>
-      
-      <!-- Loading State -->
-      <div v-if="loading" class="loading-overlay">
-        <div class="loading-spinner">
-          <div class="spinner"></div>
-          <p>Loading document...</p>
-        </div>
-      </div>
-      
+
       <!-- Error State -->
       <div v-if="error" class="error-message">
         {{ error }}
@@ -226,10 +225,20 @@ const permissions = ref({
 const loading = ref(true)
 const error = ref('')
 const versionsLoading = ref(false)
+const currentUser = ref(null)
+const showPermissions = ref(true)
 
 // Computed properties
 const canEdit = computed(() => permissions.value.write)
 const canDelete = computed(() => permissions.value.delete)
+const canRequestPhaseChange = computed(() => {
+  // Researchers can request phase change, but not admins/project leaders (for now)
+  if (!currentUser.value) return false
+  const role = (currentUser.value.naziv_uloge || '').toLowerCase()
+  // Handle diacritics/variants
+  const researcherRoles = ['researcher', 'istraživač', 'istrazivac', 'istrazivač']
+  return researcherRoles.includes(role)
+})
 
 // Methods
 async function loadDocument() {
@@ -326,6 +335,20 @@ function confirmDelete() {
   }
 }
 
+function goToPhaseChangeRequest() {
+  if (document.value) {
+    router.push(`/documents/${route.params.id}/phase-change-request`)
+  }
+}
+
+async function loadCurrentUser() {
+  try {
+    currentUser.value = await window.go?.main?.App?.GetCurrentUser()
+  } catch (e) {
+    console.error('Error loading current user:', e)
+  }
+}
+
 async function deleteDocument() {
   try {
     loading.value = true
@@ -344,8 +367,9 @@ function downloadVersion(version) {
 }
 
 // Load document on component mount
-onMounted(() => {
-  loadDocument()
+onMounted(async () => {
+  await loadCurrentUser()
+  await loadDocument()
 })
 
 function restoreVersion(version) {
@@ -366,8 +390,36 @@ function formatDate(dateString) {
   })
 }
 
-// Load document on component mount
-onMounted(() => {
-  loadDocument()
-})
+// Removed duplicate onMounted
 </script>
+
+<style scoped>
+.phase-change-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-phase-change {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-phase-change:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-phase-change:active {
+  transform: translateY(0);
+}
+</style>

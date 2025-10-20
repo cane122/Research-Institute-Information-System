@@ -30,7 +30,7 @@ func NewDocumentService(db *sql.DB) *DocumentService {
 	}
 }
 
-func (s *DocumentService) GetAllDocuments() ([]models.Dokumenti, error) {
+func (s *DocumentService) GetAllDocuments(userID int) ([]models.Dokumenti, error) {
 	query := `
 		SELECT d.dokument_id, d.projekat_id, d.naziv_dokumenta, d.folder_id,
 		       d.opis, d.tip_dokumenta, d.jezik_dokumenta, d.radni_tok_id,
@@ -49,10 +49,24 @@ func (s *DocumentService) GetAllDocuments() ([]models.Dokumenti, error) {
 			FROM verzijedokumenata 
 			GROUP BY dokument_id
 		) v ON d.dokument_id = v.dokument_id
+		WHERE (
+			(p.rukovodilac_id = $1)
+			OR EXISTS (
+				SELECT 1 FROM dozvoledokumenata dd 
+				WHERE dd.dokument_id = d.dokument_id 
+				  AND dd.korisnik_id = $1 
+				  AND dd.moze_citati = TRUE
+			)
+			OR EXISTS (
+				SELECT 1 FROM korisnici cu 
+				JOIN uloge ur ON cu.uloga_id = ur.uloga_id
+				WHERE cu.korisnik_id = $1 AND LOWER(ur.naziv_uloge) IN ('administrator','admin')
+			)
+		)
 		ORDER BY d.datuma_postavke DESC
 	`
 
-	rows, err := s.db.Query(query)
+	rows, err := s.db.Query(query, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +91,7 @@ func (s *DocumentService) GetAllDocuments() ([]models.Dokumenti, error) {
 	return documents, nil
 }
 
-func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumenti, error) {
+func (s *DocumentService) GetDocumentsByProject(projectID int, userID int) ([]models.Dokumenti, error) {
 	query := `
 		SELECT d.dokument_id, d.projekat_id, d.naziv_dokumenta, d.folder_id,
 		       d.opis, d.tip_dokumenta, d.jezik_dokumenta, d.radni_tok_id,
@@ -95,11 +109,24 @@ func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumen
 			FROM verzijedokumenata 
 			GROUP BY dokument_id
 		) v ON d.dokument_id = v.dokument_id
-		WHERE d.projekat_id = $1
+		WHERE d.projekat_id = $1 AND (
+			(p.rukovodilac_id = $2)
+			OR EXISTS (
+				SELECT 1 FROM dozvoledokumenata dd 
+				WHERE dd.dokument_id = d.dokument_id 
+				  AND dd.korisnik_id = $2 
+				  AND dd.moze_citati = TRUE
+			)
+			OR EXISTS (
+				SELECT 1 FROM korisnici cu 
+				JOIN uloge ur ON cu.uloga_id = ur.uloga_id
+				WHERE cu.korisnik_id = $2 AND LOWER(ur.naziv_uloge) IN ('administrator','admin')
+			)
+		)
 		ORDER BY d.datuma_postavke DESC
 	`
 
-	rows, err := s.db.Query(query, projectID)
+	rows, err := s.db.Query(query, projectID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +372,43 @@ func (s *DocumentService) GetDocumentVersions(documentID int) ([]models.VerzijeD
 	}
 
 	return versions, nil
+}
+
+// SaveNewVersion writes a new file version to disk and stores metadata in DB
+func (s *DocumentService) SaveNewVersion(documentID int, userID int, versionLabel *string, fileData []byte, fileName string) (int, error) {
+	// Ensure upload directory exists
+	if err := os.MkdirAll(s.uploadPath, 0755); err != nil {
+		return 0, fmt.Errorf("failed to create upload directory: %w", err)
+	}
+
+	// Generate unique file path
+	timestamp := time.Now().Format("20060102_150405")
+	fileExt := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, fileExt)
+	safeBase := strings.ReplaceAll(base, " ", "_")
+	uniqueFileName := fmt.Sprintf("%d_%s_%s%s", documentID, timestamp, safeBase, fileExt)
+	filePath := filepath.Join(s.uploadPath, uniqueFileName)
+
+	// Save file to disk
+	if err := os.WriteFile(filePath, fileData, 0644); err != nil {
+		return 0, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// Calculate file size in MB
+	sizeMB := float64(len(fileData)) / (1024 * 1024)
+
+	// Insert version row
+	var versionID int
+	query := `
+		INSERT INTO verzijedokumenata (dokument_id, verzija_oznaka, putanja_do_fajla, velicina_fajla_mb, postavio_korisnik_id)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING verzija_id
+	`
+	if err := s.db.QueryRow(query, documentID, versionLabel, filePath, sizeMB, userID).Scan(&versionID); err != nil {
+		return 0, err
+	}
+
+	return versionID, nil
 }
 
 func (s *DocumentService) GetDocumentTags(documentID int) ([]models.Tagovi, error) {
@@ -640,25 +704,28 @@ func (s *DocumentService) RemoveDocumentPermission(documentID int, userID int) e
 
 // CheckUserPermission checks if a user has specific permission on a document
 func (s *DocumentService) CheckUserPermission(documentID int, userID int, permissionType string) (bool, error) {
-	// First check if user is the document creator or admin - they have full access
+	// First check if user is the document creator, project leader, or admin - they have full access
 	var creatorID int
+	var leaderID sql.NullInt64
 	var userRole string
 
 	checkQuery := `
-		SELECT d.kreirao_korisnik_id, k.naziv_uloge
+		SELECT d.kreirao_korisnik_id, p.rukovodilac_id, k.naziv_uloge
 		FROM dokumenti d
+		LEFT JOIN projekti p ON d.projekat_id = p.projekat_id
 		JOIN korisnici u ON u.korisnik_id = $2
 		LEFT JOIN uloge k ON u.uloga_id = k.uloga_id
 		WHERE d.dokument_id = $1
 	`
 
-	err := s.db.QueryRow(checkQuery, documentID, userID).Scan(&creatorID, &userRole)
+	err := s.db.QueryRow(checkQuery, documentID, userID).Scan(&creatorID, &leaderID, &userRole)
 	if err != nil && err != sql.ErrNoRows {
 		return false, fmt.Errorf("failed to check user role: %w", err)
 	}
 
-	// Grant full access to document creator or admin
-	if creatorID == userID || userRole == "admin" {
+	// Grant full access to document creator, project leader, or admin
+	isLeader := leaderID.Valid && leaderID.Int64 == int64(userID)
+	if creatorID == userID || isLeader || strings.EqualFold(userRole, "administrator") || strings.EqualFold(userRole, "admin") {
 		return true, nil
 	}
 
@@ -686,4 +753,36 @@ func (s *DocumentService) CheckUserPermission(documentID int, userID int, permis
 	}
 
 	return hasPermission, nil
+}
+
+// IsOwnerAdminOrLeader checks if the given user is the document creator, project leader or an admin
+func (s *DocumentService) IsOwnerAdminOrLeader(documentID int, userID int) (bool, error) {
+	var creatorID sql.NullInt64
+	var leaderID sql.NullInt64
+	var roleName sql.NullString
+
+	query := `
+		SELECT d.kreirao_korisnik_id,
+			   COALESCE(p.rukovodilac_id, NULL) AS rukovodilac_id,
+			   COALESCE(r.naziv_uloge, '') AS naziv_uloge
+		FROM dokumenti d
+		LEFT JOIN projekti p ON d.projekat_id = p.projekat_id
+		JOIN korisnici u ON u.korisnik_id = $2
+		LEFT JOIN uloge r ON u.uloga_id = r.uloga_id
+		WHERE d.dokument_id = $1
+	`
+
+	if err := s.db.QueryRow(query, documentID, userID).Scan(&creatorID, &leaderID, &roleName); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+
+	if (creatorID.Valid && int(creatorID.Int64) == userID) ||
+		(leaderID.Valid && int(leaderID.Int64) == userID) ||
+		(roleName.Valid && (strings.EqualFold(roleName.String, "administrator") || strings.EqualFold(roleName.String, "admin"))) {
+		return true, nil
+	}
+	return false, nil
 }

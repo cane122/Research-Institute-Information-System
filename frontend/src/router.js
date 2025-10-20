@@ -26,6 +26,18 @@ const routes = [
     meta: { requiresGuest: true }
   },
   {
+    path: '/documents/create',
+    name: 'DocumentCreate',
+    component: () => import('./views/documents/DocumentCreate.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/workflows/create',
+    name: 'WorkflowCreate',
+    component: () => import('./views/documents/WorkflowCreate.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard,
@@ -67,6 +79,13 @@ const routes = [
     path: '/documents/full-preview/:id',
     name: 'DocumentFullPreview',
     component: DocumentFullPreview,
+    meta: { requiresAuth: true },
+    props: true
+  },
+  {
+    path: '/documents/:id/phase-change-request',
+    name: 'PhaseChangeRequest',
+    component: () => import('./views/documents/PhaseChangeRequest.vue'),
     meta: { requiresAuth: true },
     props: true
   },

@@ -8,7 +8,7 @@
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" @click="goBack">⟵ Nazad na projekte</button>
-          <button class="btn btn-primary" @click="goToUpload">📤 Dodaj dokument</button>
+          <button v-if="canAdd" class="btn btn-primary" @click="goToUpload">📤 Dodaj dokument</button>
         </div>
       </div>
 
@@ -27,6 +27,7 @@
                 <div>Autor</div>
                 <div>Tip</div>
                 <div>Poslednja izmena</div>
+                <div style="min-width:120px">Progres</div>
                 <div>Akcije</div>
               </div>
               <div v-for="d in docs" :key="d.dokument_id" class="docs-row">
@@ -34,6 +35,13 @@
                 <div>{{ d.ime_kreirao }}</div>
                 <div>{{ d.tip_dokumenta || 'Dokument' }}</div>
                 <div>{{ formatDate(d.poslednja_izmena || d.datuma_postavke) }}</div>
+                <div>
+                  <div v-if="d.progres !== undefined && d.progres !== null" class="progress-bar-outer">
+                    <div class="progress-bar-inner" :style="{ width: d.progres + '%' }"></div>
+                    <span class="progress-label">{{ d.progres }}%</span>
+                  </div>
+                  <span v-else style="color:#aaa">N/A</span>
+                </div>
                 <div class="actions">
                   <button class="btn btn-small" @click="fullPreview(d)">Pregled</button>
                 </div>
@@ -59,6 +67,7 @@ const projectId = Number(route.params.id)
 const docs = ref([])
 const loading = ref(true)
 const error = ref('')
+const canAdd = ref(false)
 
 function formatDate(s) {
   if (!s) return '-'
@@ -72,7 +81,7 @@ function goBack() {
 }
 
 function goToUpload() {
-  router.push('/documents/add')
+  router.push(`/documents/create?projectId=${projectId}`)
 }
 
 function fullPreview(doc) {
@@ -84,6 +93,14 @@ onMounted(async () => {
     loading.value = true
     const res = await window.go?.main?.App?.GetProjectDocuments(projectId)
     docs.value = res || []
+    // ask backend if current user can add a document to this project
+    if (window.go?.main?.App?.CanAddProjectDocument) {
+      try {
+        canAdd.value = await window.go.main.App.CanAddProjectDocument(projectId)
+      } catch (e) {
+        canAdd.value = false
+      }
+    }
   } catch (e) {
     error.value = e?.message || 'Greška pri učitavanju dokumenata'
   } finally {
@@ -97,7 +114,34 @@ onMounted(async () => {
 .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
 .card-header { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
 .card-body { padding: 16px; }
-.docs-header, .docs-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 12px; align-items: center; }
+.docs-header, .docs-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.2fr 1fr; gap: 12px; align-items: center; }
+.progress-bar-outer {
+  position: relative;
+  background: #f3f4f6;
+  border-radius: 6px;
+  height: 18px;
+  width: 100%;
+  min-width: 90px;
+  margin-right: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+.progress-bar-inner {
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+  height: 100%;
+  transition: width 0.3s;
+}
+.progress-label {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #222;
+  font-weight: 600;
+  z-index: 2;
+}
 .docs-header { font-weight: 600; color: #374151; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
 .docs-row { padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
 .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

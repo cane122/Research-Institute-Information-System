@@ -1,3 +1,46 @@
+export namespace main {
+	
+	export class CreateDocumentWithPermissionsRequest {
+	    naziv_dokumenta: string;
+	    projekat_id: number;
+	    radni_tok_id: number;
+	    opis?: string;
+	    rok?: string;
+	    korisnici_dozvole: number[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateDocumentWithPermissionsRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.naziv_dokumenta = source["naziv_dokumenta"];
+	        this.projekat_id = source["projekat_id"];
+	        this.radni_tok_id = source["radni_tok_id"];
+	        this.opis = source["opis"];
+	        this.rok = source["rok"];
+	        this.korisnici_dozvole = source["korisnici_dozvole"];
+	    }
+	}
+	export class CreateWorkflowWithPhasesRequest {
+	    naziv: string;
+	    tip_toka: string;
+	    faze: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateWorkflowWithPhasesRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.naziv = source["naziv"];
+	        this.tip_toka = source["tip_toka"];
+	        this.faze = source["faze"];
+	    }
+	}
+
+}
+
 export namespace models {
 	
 	export class ActivityLogRequest {
@@ -92,6 +135,7 @@ export namespace models {
 	    ime_kreirao?: string;
 	    naziv_faze?: string;
 	    broj_verzija?: number;
+	    progres?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Dokumenti(source);
@@ -116,6 +160,7 @@ export namespace models {
 	        this.ime_kreirao = source["ime_kreirao"];
 	        this.naziv_faze = source["naziv_faze"];
 	        this.broj_verzija = source["broj_verzija"];
+	        this.progres = source["progres"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -448,9 +493,28 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class Zadacic {
+	    zadacic_id: number;
+	    dokument_id: number;
+	    opis: string;
+	    izvrsen: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Zadacic(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.zadacic_id = source["zadacic_id"];
+	        this.dokument_id = source["dokument_id"];
+	        this.opis = source["opis"];
+	        this.izvrsen = source["izvrsen"];
+	    }
+	}
 	export class ZahteviPromeneFaze {
 	    zahtev_id: number;
-	    zadatak_id: number;
+	    zadatak_id?: number;
+	    dokument_id?: number;
 	    podnosilac_zahteva_id: number;
 	    zahtevana_faza_id: number;
 	    status: string;
@@ -466,6 +530,7 @@ export namespace models {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.zahtev_id = source["zahtev_id"];
 	        this.zadatak_id = source["zadatak_id"];
+	        this.dokument_id = source["dokument_id"];
 	        this.podnosilac_zahteva_id = source["podnosilac_zahteva_id"];
 	        this.zahtevana_faza_id = source["zahtevana_faza_id"];
 	        this.status = source["status"];

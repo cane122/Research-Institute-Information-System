@@ -2,6 +2,14 @@
 
 import "time"
 
+// Zadacic model za checklistu po dokumentu
+type Zadacic struct {
+	ZadacicID  int    `json:"zadacic_id" db:"zadacic_id"`
+	DokumentID int    `json:"dokument_id" db:"dokument_id"`
+	Opis       string `json:"opis" db:"opis"`
+	Izvrsen    bool   `json:"izvrsen" db:"izvrsen"`
+}
+
 // =============================================================================
 // Modul 1: Upravljanje Korisnicima i Ulogama
 // =============================================================================
@@ -107,7 +115,8 @@ type KomentariZadataka struct {
 // ZahteviPromeneFaze represents phase change requests
 type ZahteviPromeneFaze struct {
 	ZahtevID            int       `json:"zahtev_id" db:"zahtev_id"`
-	ZadatakID           int       `json:"zadatak_id" db:"zadatak_id"`
+	ZadatakID           *int      `json:"zadatak_id" db:"zadatak_id"`
+	DokumentID          *int      `json:"dokument_id" db:"dokument_id"`
 	PodnosilacZahtevaID int       `json:"podnosilac_zahteva_id" db:"podnosilac_zahteva_id"`
 	ZahtevanaFazaID     int       `json:"zahtevana_faza_id" db:"zahtevana_faza_id"`
 	Status              string    `json:"status" db:"status"`
@@ -148,6 +157,7 @@ type Dokumenti struct {
 	ImeKreirao    string `json:"ime_kreirao,omitempty" db:"ime_kreirao"`
 	NazivFaze     string `json:"naziv_faze,omitempty" db:"naziv_faze"`
 	BrojVerzija   int    `json:"broj_verzija,omitempty" db:"broj_verzija"`
+	Progres       *int   `json:"progres,omitempty" db:"-"` // Procenat odrađenih zadacica
 }
 
 // VerzijeDokumenata represents document versions
