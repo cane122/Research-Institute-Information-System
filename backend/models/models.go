@@ -62,9 +62,11 @@ type Projekti struct {
 	RadniTokID     *int       `json:"radni_tok_id" db:"radni_tok_id"`
 
 	// Joined fields
-	RukovodilaIme string `json:"rukovodilac_ime,omitempty" db:"rukovodilac_ime"`
-	BrojZadataka  int    `json:"broj_zadataka,omitempty" db:"broj_zadataka"`
-	BrojClanova   int    `json:"broj_clanova,omitempty" db:"broj_clanova"`
+	RukovodilaIme       string  `json:"rukovodilac_ime,omitempty" db:"rukovodilac_ime"`
+	BrojZadataka        int     `json:"broj_zadataka,omitempty" db:"broj_zadataka"`
+	BrojClanova         int     `json:"broj_clanova,omitempty" db:"broj_clanova"`
+	BrojAktivnihClanova int     `json:"broj_aktivnih_clanova,omitempty" db:"broj_aktivnih_clanova"`
+	ProcenatZavrsenosti float64 `json:"procenat_zavrsenosti,omitempty" db:"procenat_zavrsenosti"`
 }
 
 // ClanoviProjekta represents project team members

@@ -25,7 +25,9 @@ func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 		       p.datum_zavrsetka, p.status, p.rukovodilac_id, p.radni_tok_id,
 		       COALESCE(k.korisnicko_ime, '') as rukovodilac_ime,
 		       COALESCE(task_count.cnt, 0) as broj_zadataka,
-		       COALESCE(member_count.cnt, 0) as broj_clanova
+		       COALESCE(member_count.cnt, 0) as broj_clanova,
+		       broj_aktivnih_clanova(p.projekat_id) as broj_aktivnih_clanova,
+		       procenat_zavrsenih_zadataka(p.projekat_id) as procenat_zavrsenosti
 		FROM projekti p
 		LEFT JOIN korisnici k ON p.rukovodilac_id = k.korisnik_id
 		LEFT JOIN (
@@ -55,6 +57,7 @@ func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 			&project.DatumPocetka, &project.DatumZavrsetka, &project.Status,
 			&project.RukovodilaID, &project.RadniTokID, &project.RukovodilaIme,
 			&project.BrojZadataka, &project.BrojClanova,
+			&project.BrojAktivnihClanova, &project.ProcenatZavrsenosti,
 		)
 		if err != nil {
 			return nil, err

@@ -23,6 +23,19 @@ func NewAnalyticsService(db *sql.DB) *AnalyticsService {
 // Activity Logging
 // ============================================================================
 
+// ExecuteComplexReport calls the PL/SQL procedure for complex project statistics report
+func (s *AnalyticsService) ExecuteComplexReport() (string, error) {
+	// Call the stored procedure
+	query := `BEGIN kompleksan_izvestaj_projekata; END;`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute complex report: %w", err)
+	}
+
+	return "Complex report executed successfully. Check database output.", nil
+}
+
 // LogActivity logs a user activity
 func (s *AnalyticsService) LogActivity(korisnikID *int, req models.ActivityLogRequest) error {
 	// Use actual column names from database: korisnik_id, tip_aktivnosti, entitet_tip, entitet_id, opis
