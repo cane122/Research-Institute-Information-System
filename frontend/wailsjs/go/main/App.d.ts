@@ -47,6 +47,8 @@ export function GetDocumentVersions(arg1:number):Promise<Array<models.VerzijeDok
 
 export function GetDocumentsByType():Promise<Record<string, number>>;
 
+export function GetDocumentsForUser():Promise<Array<models.Dokumenti>>;
+
 export function GetRecentActivity(arg1:number):Promise<Array<models.SkornjeAktivnosti>>;
 
 export function GetTopContributors(arg1:number):Promise<Array<Record<string, any>>>;

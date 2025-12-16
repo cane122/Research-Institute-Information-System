@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/sijms/go-ora/v2"
 )
 
 // Test osnovne konekcije na bazu
@@ -18,56 +17,47 @@ func TestDatabaseConnection(t *testing.T) {
 	testCases := []struct {
 		name     string
 		host     string
+		port     string
 		user     string
 		password string
-		dbname   string
+		sid      string
 	}{
 		{
-			name:     "Default Config",
-			host:     "localhost:5432",
-			user:     "postgres",
-			password: "password",
-			dbname:   "research_institute",
+			name:     "Default XE",
+			host:     "localhost",
+			port:     "1521",
+			user:     "SYSTEM",
+			password: "",
+			sid:      "xe",
 		},
 		{
-			name:     "Alternative Password",
-			host:     "localhost:5432",
-			user:     "postgres",
-			password: "postgres",
-			dbname:   "research_institute",
-		},
-		{
-			name:     "Different Port",
-			host:     "localhost:5433",
-			user:     "postgres",
-			password: "password",
-			dbname:   "research_institute",
+			name:     "XE with password",
+			host:     "localhost",
+			port:     "1521",
+			user:     "SYSTEM",
+			password: "oracle",
+			sid:      "xe",
 		},
 		{
 			name:     "Environment Variables",
-			host:     getEnvOrDefault("DB_HOST", "localhost:5432"),
-			user:     getEnvOrDefault("DB_USER", "postgres"),
-			password: getEnvOrDefault("DB_PASSWORD", "password"),
-			dbname:   getEnvOrDefault("DB_NAME", "research_institute"),
+			host:     getEnvOrDefault("DB_HOST", "localhost"),
+			port:     getEnvOrDefault("DB_PORT", "1521"),
+			user:     getEnvOrDefault("DB_USER", "SYSTEM"),
+			password: getEnvOrDefault("DB_PASSWORD", ""),
+			sid:      getEnvOrDefault("DB_SID", "xe"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Separated host and port for proper DSN format
-			hostParts := strings.Split(tc.host, ":")
-			host := hostParts[0]
-			port := "5432"
-			if len(hostParts) > 1 {
-				port = hostParts[1]
-			}
+			// go-ora connection URL format: oracle://user:password@host:port/service_name
+			connStr := fmt.Sprintf("oracle://%s:%s@%s:%s/%s",
+				tc.user, tc.password, tc.host, tc.port, tc.sid)
 
-			dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-				host, port, tc.user, tc.password, tc.dbname)
+			t.Logf("Pokušavam konekciju sa: host=%s port=%s user=%s sid=%s",
+				tc.host, tc.port, tc.user, tc.sid)
 
-			t.Logf("Pokušavam konekciju sa: host=%s port=%s user=%s dbname=%s", host, port, tc.user, tc.dbname)
-
-			db, err := sql.Open("postgres", dsn)
+			db, err := sql.Open("oracle", connStr)
 			if err != nil {
 				t.Logf("GREŠKA pri otvaranju konekcije: %v", err)
 				return
@@ -88,13 +78,13 @@ func TestDatabaseConnection(t *testing.T) {
 
 			// Test jednostavnog upita
 			var version string
-			err = db.QueryRow("SELECT version()").Scan(&version)
+			err = db.QueryRow("SELECT BANNER FROM v$version WHERE ROWNUM = 1").Scan(&version)
 			if err != nil {
 				t.Logf("GREŠKA pri izvršavanju upita: %v", err)
 				return
 			}
 
-			t.Logf("PostgreSQL verzija: %s", version)
+			t.Logf("Oracle Database verzija: %s", version)
 		})
 	}
 }
@@ -117,21 +107,16 @@ func TestDatabaseTables(t *testing.T) {
 	}
 
 	for _, tableName := range expectedTables {
-		var exists bool
-		query := `
-			SELECT EXISTS (
-				SELECT FROM information_schema.tables 
-				WHERE table_schema = 'public' 
-				AND table_name = $1
-			)`
+		var tableCount int
+		query := `SELECT COUNT(*) FROM user_tables WHERE UPPER(table_name) = UPPER(:1)`
 
-		err := db.QueryRow(query, tableName).Scan(&exists)
+		err := db.QueryRow(query, tableName).Scan(&tableCount)
 		if err != nil {
 			t.Errorf("Greška pri proveri tabele %s: %v", tableName, err)
 			continue
 		}
 
-		if !exists {
+		if tableCount == 0 {
 			t.Errorf("❌ Tabela '%s' ne postoji", tableName)
 		} else {
 			t.Logf("✅ Tabela '%s' postoji", tableName)
@@ -182,21 +167,18 @@ func TestDefaultData(t *testing.T) {
 	}
 }
 
-// Test PostgreSQL servisa
-func TestPostgreSQLService(t *testing.T) {
-	t.Log("=== DIJAGNOSTIKA PostgreSQL SERVISA ===")
-
-	// Proveri da li je servis pokrenut (Windows specifično)
-	t.Log("Proveravam PostgreSQL servis...")
+// Test Oracle Database servisa
+func TestOracleDatabaseService(t *testing.T) {
+	t.Log("=== DIJAGNOSTIKA Oracle SERVISA ===")
 
 	// Pokušaj konekcije na različitim portovima
-	ports := []string{"5432", "5433", "5434"}
+	ports := []string{"1521", "1522"}
 
 	for _, port := range ports {
 		t.Logf("Testiram port %s...", port)
 
-		dsn := fmt.Sprintf("host=localhost:%s user=postgres password=password dbname=postgres sslmode=disable", port)
-		db, err := sql.Open("postgres", dsn)
+		connStr := fmt.Sprintf("oracle://SYSTEM:@localhost:%s/xe", port)
+		db, err := sql.Open("oracle", connStr)
 		if err != nil {
 			t.Logf("❌ Port %s: Greška pri otvaranju - %v", port, err)
 			continue
@@ -208,7 +190,7 @@ func TestPostgreSQLService(t *testing.T) {
 		if err != nil {
 			t.Logf("❌ Port %s: Ping neuspešan - %v", port, err)
 		} else {
-			t.Logf("✅ Port %s: PostgreSQL je aktivan!", port)
+			t.Logf("✅ Port %s: Oracle je aktivan!", port)
 		}
 	}
 }
@@ -216,19 +198,20 @@ func TestPostgreSQLService(t *testing.T) {
 // Helper funkcija za konekciju
 func connectToDatabase(t *testing.T) *sql.DB {
 	configs := []string{
-		"host=localhost:5432 user=postgres password=password dbname=research_institute sslmode=disable",
-		"host=localhost:5432 user=postgres password=postgres dbname=research_institute sslmode=disable",
-		fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-			getEnvOrDefault("DB_HOST", "localhost:5432"),
-			getEnvOrDefault("DB_USER", "postgres"),
-			getEnvOrDefault("DB_PASSWORD", "password"),
-			getEnvOrDefault("DB_NAME", "research_institute")),
+		"oracle://SYSTEM:@localhost:1521/xe",
+		"oracle://SYSTEM:oracle@localhost:1521/xe",
+		fmt.Sprintf("oracle://%s:%s@%s:%s/%s",
+			getEnvOrDefault("DB_USER", "SYSTEM"),
+			getEnvOrDefault("DB_PASSWORD", ""),
+			getEnvOrDefault("DB_HOST", "localhost"),
+			getEnvOrDefault("DB_PORT", "1521"),
+			getEnvOrDefault("DB_SID", "xe")),
 	}
 
-	for i, dsn := range configs {
-		t.Logf("Pokušavam konfiguraciju %d: %s", i+1, dsn)
+	for i, connStr := range configs {
+		t.Logf("Pokušavam konfiguraciju %d", i+1)
 
-		db, err := sql.Open("postgres", dsn)
+		db, err := sql.Open("oracle", connStr)
 		if err != nil {
 			t.Logf("Greška pri otvaranju %d: %v", i+1, err)
 			continue

@@ -90,6 +90,10 @@ export function GetDocumentsByType() {
   return window['go']['main']['App']['GetDocumentsByType']();
 }
 
+export function GetDocumentsForUser() {
+  return window['go']['main']['App']['GetDocumentsForUser']();
+}
+
 export function GetRecentActivity(arg1) {
   return window['go']['main']['App']['GetRecentActivity'](arg1);
 }

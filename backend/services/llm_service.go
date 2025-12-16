@@ -79,7 +79,7 @@ func (s *LLMService) SetAPIKey(apiKey string) {
 // GenerateSummary generates a summary of the given text using ChatGPT 3.5 Turbo
 func (s *LLMService) GenerateSummary(documentText string, maxLength int) (string, error) {
 	if s.apiKey == "" {
-		return "", errors.New("OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.")
+		return "", errors.New("OpenAI API key not configured, please set OPENAI_API_KEY environment variable")
 	}
 
 	if documentText == "" {

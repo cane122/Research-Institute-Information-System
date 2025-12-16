@@ -77,6 +77,99 @@ func (s *DocumentService) GetAllDocuments() ([]models.Dokumenti, error) {
 	return documents, nil
 }
 
+// GetDocumentsForUser returns only documents that the user can access:
+// - Documents created by the user
+// - All documents if user is admin
+// - Documents where user has read permission in dozvoledokumenata
+func (s *DocumentService) GetDocumentsForUser(userID int) ([]models.Dokumenti, error) {
+	// First check if user is admin
+	var userRole string
+	roleQuery := `SELECT COALESCE(u.naziv_uloge, '') FROM korisnici k LEFT JOIN uloge u ON k.uloga_id = u.uloga_id WHERE k.korisnik_id = :1`
+	err := s.db.QueryRow(roleQuery, userID).Scan(&userRole)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("failed to get user role: %w", err)
+	}
+
+	var query string
+	var rows *sql.Rows
+
+	userRoleLower := strings.ToLower(strings.TrimSpace(userRole))
+	if userRoleLower == "administrator" || userRoleLower == "admin" {
+		// Admin sees all documents
+		query = `
+			SELECT d.dokument_id, d.projekat_id, d.naziv_dokumenta, d.folder_id,
+			       d.opis, d.tip_dokumenta, d.jezik_dokumenta, d.radni_tok_id,
+			       d.trenutna_faza_id, d.kreirao_korisnik_id, d.datuma_postavke,
+			       d.poslednja_izmena,
+			       COALESCE(p.naziv_projekta, '') as naziv_projekta,
+			       k.korisnicko_ime as ime_kreirao,
+			       COALESCE(f.naziv_faze, '') as naziv_faze,
+			       COALESCE(v.version_count, 0) as broj_verzija
+			FROM dokumenti d
+			LEFT JOIN projekti p ON d.projekat_id = p.projekat_id
+			JOIN korisnici k ON d.kreirao_korisnik_id = k.korisnik_id
+			LEFT JOIN faze f ON d.trenutna_faza_id = f.faza_id
+			LEFT JOIN (
+				SELECT dokument_id, COUNT(*) as version_count 
+				FROM verzijedokumenata 
+				GROUP BY dokument_id
+			) v ON d.dokument_id = v.dokument_id
+			ORDER BY d.datuma_postavke DESC
+		`
+		rows, err = s.db.Query(query)
+	} else {
+		// Regular users see: their own documents OR documents with read permission OR documents from projects they manage
+		query = `
+			SELECT DISTINCT d.dokument_id, d.projekat_id, d.naziv_dokumenta, d.folder_id,
+			       d.opis, d.tip_dokumenta, d.jezik_dokumenta, d.radni_tok_id,
+			       d.trenutna_faza_id, d.kreirao_korisnik_id, d.datuma_postavke,
+			       d.poslednja_izmena,
+			       COALESCE(p.naziv_projekta, '') as naziv_projekta,
+			       k.korisnicko_ime as ime_kreirao,
+			       COALESCE(f.naziv_faze, '') as naziv_faze,
+			       COALESCE(v.version_count, 0) as broj_verzija
+			FROM dokumenti d
+			LEFT JOIN projekti p ON d.projekat_id = p.projekat_id
+			JOIN korisnici k ON d.kreirao_korisnik_id = k.korisnik_id
+			LEFT JOIN faze f ON d.trenutna_faza_id = f.faza_id
+			LEFT JOIN (
+				SELECT dokument_id, COUNT(*) as version_count 
+				FROM verzijedokumenata 
+				GROUP BY dokument_id
+			) v ON d.dokument_id = v.dokument_id
+			LEFT JOIN dozvoledokumenata dd ON d.dokument_id = dd.dokument_id AND dd.korisnik_id = :1
+			WHERE d.kreirao_korisnik_id = :1 
+			   OR (dd.moze_citati = 1)
+			   OR (p.rukovodilac_id = :1)
+			ORDER BY d.datuma_postavke DESC
+		`
+		rows, err = s.db.Query(query, userID)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query documents: %w", err)
+	}
+	defer rows.Close()
+
+	var documents []models.Dokumenti
+	for rows.Next() {
+		var doc models.Dokumenti
+		err := rows.Scan(
+			&doc.DokumentID, &doc.ProjekatID, &doc.NazivDokumenta, &doc.FolderID,
+			&doc.Opis, &doc.TipDokumenta, &doc.JezikDokumenta, &doc.RadniTokID,
+			&doc.TrenutnaFazaID, &doc.KreiraoKorisnikID, &doc.DatumaPostavke,
+			&doc.PoslednjaIzmena, &doc.NazivProjekta, &doc.ImeKreirao,
+			&doc.NazivFaze, &doc.BrojVerzija,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan document: %w", err)
+		}
+		documents = append(documents, doc)
+	}
+
+	return documents, nil
+}
+
 func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumenti, error) {
 	query := `
 		SELECT d.dokument_id, d.projekat_id, d.naziv_dokumenta, d.folder_id,
@@ -95,7 +188,7 @@ func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumen
 			FROM verzijedokumenata 
 			GROUP BY dokument_id
 		) v ON d.dokument_id = v.dokument_id
-		WHERE d.projekat_id = $1
+		WHERE d.projekat_id = :1
 		ORDER BY d.datuma_postavke DESC
 	`
 
@@ -138,7 +231,7 @@ func (s *DocumentService) GetDocumentByID(documentID int) (models.Dokumenti, err
 		LEFT JOIN projekti p ON d.projekat_id = p.projekat_id
 		JOIN korisnici k ON d.kreirao_korisnik_id = k.korisnik_id
 		LEFT JOIN faze f ON d.trenutna_faza_id = f.faza_id
-		WHERE d.dokument_id = $1
+		WHERE d.dokument_id = :1
 	`
 
 	err := s.db.QueryRow(query, documentID).Scan(
@@ -168,7 +261,7 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	docQuery := `
 		INSERT INTO dokumenti (projekat_id, naziv_dokumenta, folder_id, opis, 
 		                      tip_dokumenta, jezik_dokumenta, kljucne_reci, kreirao_korisnik_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		VALUES (:1, :2, :3, :4, :5, :6, :7, :8)
 		RETURNING dokument_id
 	`
 
@@ -204,7 +297,7 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	versionQuery := `
 		INSERT INTO verzijedokumenata (dokument_id, verzija_oznaka, putanja_do_fajla, 
 		                               velicina_fajla_mb, postavio_korisnik_id)
-		VALUES ($1, '1.0', $2, $3, $4)
+		VALUES (:1, '1.0', :2, :3, :4)
 	`
 
 	_, err = tx.Exec(versionQuery, documentID, filePath, fileSizeMB, userID)
@@ -229,10 +322,10 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 func (s *DocumentService) addDocumentTagInTx(tx *sql.Tx, documentID int, tagName string) error {
 	// Check if tag exists, if not create it
 	var tagID int
-	err := tx.QueryRow("SELECT tag_id FROM tagovi WHERE naziv_taga = $1", tagName).Scan(&tagID)
+	err := tx.QueryRow("SELECT tag_id FROM tagovi WHERE naziv_taga = :1", tagName).Scan(&tagID)
 	if err == sql.ErrNoRows {
 		// Create new tag
-		err = tx.QueryRow("INSERT INTO tagovi (naziv_taga) VALUES ($1) RETURNING tag_id", tagName).Scan(&tagID)
+		err = tx.QueryRow("INSERT INTO tagovi (naziv_taga) VALUES (:1) RETURNING tag_id", tagName).Scan(&tagID)
 		if err != nil {
 			return err
 		}
@@ -241,16 +334,16 @@ func (s *DocumentService) addDocumentTagInTx(tx *sql.Tx, documentID int, tagName
 	}
 
 	// Link tag to document
-	_, err = tx.Exec("INSERT INTO dokumenttagovi (dokument_id, tag_id) VALUES ($1, $2)", documentID, tagID)
+	_, err = tx.Exec("INSERT INTO dokumenttagovi (dokument_id, tag_id) VALUES (:1, :2)", documentID, tagID)
 	return err
 }
 
 func (s *DocumentService) UpdateDocument(documentID int, req models.UploadDocumentRequest) error {
 	query := `
 		UPDATE dokumenti 
-		SET naziv_dokumenta = $1, projekat_id = $2, folder_id = $3, opis = $4,
-		    tip_dokumenta = $5, jezik_dokumenta = $6, poslednja_izmena = CURRENT_TIMESTAMP
-		WHERE dokument_id = $7
+		SET naziv_dokumenta = :1, projekat_id = :2, folder_id = :3, opis = :4,
+		    tip_dokumenta = :5, jezik_dokumenta = :6, poslednja_izmena = CURRENT_TIMESTAMP
+		WHERE dokument_id = :7
 	`
 
 	_, err := s.db.Exec(query, req.NazivDokumenta, req.ProjekatID, req.FolderID,
@@ -268,7 +361,7 @@ func (s *DocumentService) DeleteDocument(documentID int) error {
 
 	// Get all file paths for deletion
 	var filePaths []string
-	versionQuery := `SELECT putanja_do_fajla FROM verzijedokumenata WHERE dokument_id = $1`
+	versionQuery := `SELECT putanja_do_fajla FROM verzijedokumenata WHERE dokument_id = :1`
 	rows, err := tx.Query(versionQuery, documentID)
 	if err != nil {
 		return err
@@ -284,7 +377,7 @@ func (s *DocumentService) DeleteDocument(documentID int) error {
 	}
 
 	// Delete document (cascade will handle related records)
-	deleteQuery := `DELETE FROM dokumenti WHERE dokument_id = $1`
+	deleteQuery := `DELETE FROM dokumenti WHERE dokument_id = :1`
 	result, err := tx.Exec(deleteQuery, documentID)
 	if err != nil {
 		return err
@@ -320,7 +413,7 @@ func (s *DocumentService) GetDocumentVersions(documentID int) ([]models.VerzijeD
 		SELECT v.verzija_id, v.dokument_id, v.verzija_oznaka, v.putanja_do_fajla,
 		       v.velicina_fajla_mb, v.postavio_korisnik_id, v.datuma_postavke
 		FROM verzijedokumenata v
-		WHERE v.dokument_id = $1
+		WHERE v.dokument_id = :1
 		ORDER BY v.datuma_postavke DESC
 	`
 
@@ -352,7 +445,7 @@ func (s *DocumentService) GetDocumentTags(documentID int) ([]models.Tagovi, erro
 		SELECT t.tag_id, t.naziv_taga
 		FROM tagovi t
 		JOIN dokumenttagovi dt ON t.tag_id = dt.tag_id
-		WHERE dt.dokument_id = $1
+		WHERE dt.dokument_id = :1
 		ORDER BY t.naziv_taga
 	`
 
@@ -391,7 +484,7 @@ func (s *DocumentService) AddDocumentTag(documentID int, tagName string) error {
 }
 
 func (s *DocumentService) RemoveDocumentTag(documentID, tagID int) error {
-	query := `DELETE FROM dokumenttagovi WHERE dokument_id = $1 AND tag_id = $2`
+	query := `DELETE FROM dokumenttagovi WHERE dokument_id = :1 AND tag_id = :2`
 	_, err := s.db.Exec(query, documentID, tagID)
 	return err
 }
@@ -400,7 +493,7 @@ func (s *DocumentService) GetDocumentMetadata(documentID int) ([]models.MetaPoda
 	query := `
 		SELECT meta_id, dokument_id, kljuc, vrednost
 		FROM metapodaci
-		WHERE dokument_id = $1
+		WHERE dokument_id = :1
 		ORDER BY kljuc
 	`
 
@@ -431,14 +524,14 @@ func (s *DocumentService) UpdateDocumentMetadata(documentID int, metadata []mode
 	defer tx.Rollback()
 
 	// Delete existing metadata
-	_, err = tx.Exec("DELETE FROM metapodaci WHERE dokument_id = $1", documentID)
+	_, err = tx.Exec("DELETE FROM metapodaci WHERE dokument_id = :1", documentID)
 	if err != nil {
 		return err
 	}
 
 	// Insert new metadata
 	for _, meta := range metadata {
-		_, err = tx.Exec("INSERT INTO metapodaci (dokument_id, kljuc, vrednost) VALUES ($1, $2, $3)",
+		_, err = tx.Exec("INSERT INTO metapodaci (dokument_id, kljuc, vrednost) VALUES (:1, :2, :3)",
 			documentID, meta.Kljuc, meta.Vrednost)
 		if err != nil {
 			return err
@@ -452,7 +545,7 @@ func (s *DocumentService) GetAllFolders(userID int) ([]models.Folderi, error) {
 	query := `
 		SELECT folder_id, naziv_foldera, roditelj_folder_id, vlasnik_id
 		FROM folderi
-		WHERE vlasnik_id = $1
+		WHERE vlasnik_id = :1
 		ORDER BY naziv_foldera
 	`
 
@@ -479,7 +572,7 @@ func (s *DocumentService) GetAllFolders(userID int) ([]models.Folderi, error) {
 func (s *DocumentService) CreateFolder(folder models.Folderi) error {
 	query := `
 		INSERT INTO folderi (naziv_foldera, roditelj_folder_id, vlasnik_id)
-		VALUES ($1, $2, $3)
+		VALUES (:1, :2, :3)
 	`
 
 	_, err := s.db.Exec(query, folder.NazivFoldera, folder.RoditeljFolderID, folder.VlasnikID)
@@ -490,7 +583,7 @@ func (s *DocumentService) CreateFolder(folder models.Folderi) error {
 func (s *DocumentService) SaveLLMSummary(documentID int, summary string) error {
 	query := `
 		INSERT INTO llmsazeci (dokument_id, sazetak)
-		VALUES ($1, $2)
+		VALUES (:1, :2)
 	`
 
 	_, err := s.db.Exec(query, documentID, summary)
@@ -502,7 +595,7 @@ func (s *DocumentService) GetLLMSummaries(documentID int) ([]models.LLMSazeci, e
 	query := `
 		SELECT sazetak_id, dokument_id, verzija_oznaka, sazetak, datum_kreiranja
 		FROM llmsazeci
-		WHERE dokument_id = $1
+		WHERE dokument_id = :1
 		ORDER BY datum_kreiranja DESC
 	`
 
@@ -573,7 +666,7 @@ func (s *DocumentService) GetDocumentPermissions(documentID int) ([]models.Docum
 			dd.moze_brisati
 		FROM dozvoledokumenata dd
 		JOIN korisnici k ON dd.korisnik_id = k.korisnik_id
-		WHERE dd.dokument_id = $1
+		WHERE dd.dokument_id = :1
 		ORDER BY k.korisnicko_ime ASC
 	`
 
@@ -610,7 +703,7 @@ func (s *DocumentService) GetDocumentPermissions(documentID int) ([]models.Docum
 func (s *DocumentService) SetDocumentPermission(req models.DocumentPermissionRequest) error {
 	query := `
 		INSERT INTO dozvoledokumenata (dokument_id, korisnik_id, moze_citati, moze_menjati, moze_brisati)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES (:1, :2, :3, :4, :5)
 		ON CONFLICT (dokument_id, korisnik_id)
 		DO UPDATE SET
 			moze_citati = EXCLUDED.moze_citati,
@@ -628,7 +721,7 @@ func (s *DocumentService) SetDocumentPermission(req models.DocumentPermissionReq
 
 // RemoveDocumentPermission removes a user's permission from a document
 func (s *DocumentService) RemoveDocumentPermission(documentID int, userID int) error {
-	query := `DELETE FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+	query := `DELETE FROM dozvoledokumenata WHERE dokument_id = :1 AND korisnik_id = :2`
 
 	_, err := s.db.Exec(query, documentID, userID)
 	if err != nil {
@@ -642,37 +735,47 @@ func (s *DocumentService) RemoveDocumentPermission(documentID int, userID int) e
 func (s *DocumentService) CheckUserPermission(documentID int, userID int, permissionType string) (bool, error) {
 	// First check if user is the document creator or admin - they have full access
 	var creatorID int
-	var userRole string
+	var userRole sql.NullString
 
 	checkQuery := `
-		SELECT d.kreirao_korisnik_id, k.naziv_uloge
+		SELECT d.kreirao_korisnik_id, u.naziv_uloge
 		FROM dokumenti d
-		JOIN korisnici u ON u.korisnik_id = $2
-		LEFT JOIN uloge k ON u.uloga_id = k.uloga_id
-		WHERE d.dokument_id = $1
+		CROSS JOIN korisnici k
+		LEFT JOIN uloge u ON k.uloga_id = u.uloga_id
+		WHERE d.dokument_id = :1 AND k.korisnik_id = :2
 	`
 
 	err := s.db.QueryRow(checkQuery, documentID, userID).Scan(&creatorID, &userRole)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("document or user not found")
+		}
 		return false, fmt.Errorf("failed to check user role: %w", err)
 	}
 
-	// Grant full access to document creator or admin
-	if creatorID == userID || userRole == "admin" {
-		return true, nil
+	// Extract role value
+	userRoleVal := ""
+	if userRole.Valid {
+		userRoleVal = userRole.String
 	}
 
+	// Grant full access to document creator or admin
+	userRoleLower := strings.ToLower(strings.TrimSpace(userRoleVal))
+
+	if creatorID == userID || userRoleLower == "administrator" || userRoleLower == "admin" {
+		return true, nil
+	}
 	// Check specific permission for regular users
 	var hasPermission bool
 	var query string
 
 	switch permissionType {
 	case "read":
-		query = `SELECT moze_citati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+		query = `SELECT moze_citati FROM dozvoledokumenata WHERE dokument_id = :1 AND korisnik_id = :2`
 	case "write":
-		query = `SELECT moze_menjati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+		query = `SELECT moze_menjati FROM dozvoledokumenata WHERE dokument_id = :1 AND korisnik_id = :2`
 	case "delete":
-		query = `SELECT moze_brisati FROM dozvoledokumenata WHERE dokument_id = $1 AND korisnik_id = $2`
+		query = `SELECT moze_brisati FROM dozvoledokumenata WHERE dokument_id = :1 AND korisnik_id = :2`
 	default:
 		return false, fmt.Errorf("invalid permission type: %s", permissionType)
 	}

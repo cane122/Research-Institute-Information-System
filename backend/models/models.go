@@ -144,10 +144,10 @@ type Dokumenti struct {
 	PoslednjaIzmena   *time.Time `json:"poslednja_izmena" db:"poslednja_izmena"`
 
 	// Joined fields
-	NazivProjekta string `json:"naziv_projekta,omitempty" db:"naziv_projekta"`
-	ImeKreirao    string `json:"ime_kreirao,omitempty" db:"ime_kreirao"`
-	NazivFaze     string `json:"naziv_faze,omitempty" db:"naziv_faze"`
-	BrojVerzija   int    `json:"broj_verzija,omitempty" db:"broj_verzija"`
+	NazivProjekta *string `json:"naziv_projekta,omitempty" db:"naziv_projekta"`
+	ImeKreirao    string  `json:"ime_kreirao,omitempty" db:"ime_kreirao"`
+	NazivFaze     *string `json:"naziv_faze,omitempty" db:"naziv_faze"`
+	BrojVerzija   int     `json:"broj_verzija,omitempty" db:"broj_verzija"`
 }
 
 // VerzijeDokumenata represents document versions

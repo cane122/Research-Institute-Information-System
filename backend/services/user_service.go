@@ -61,7 +61,7 @@ func (s *UserService) CreateUser(user models.Korisnici, password string) error {
 
 	query := `
 		INSERT INTO korisnici (korisnicko_ime, email, hash_sifre, ime, prezime, uloga_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES (:1, :2, :3, :4, :5, :6, :7)
 	`
 
 	_, err = s.db.Exec(query, user.KorisnickoIme, user.Email, string(hashedPassword),
@@ -73,9 +73,9 @@ func (s *UserService) CreateUser(user models.Korisnici, password string) error {
 func (s *UserService) UpdateUser(userID int, user models.Korisnici) error {
 	query := `
 		UPDATE korisnici 
-		SET korisnicko_ime = $1, email = $2, ime = $3, prezime = $4, 
-		    uloga_id = $5, status = $6
-		WHERE korisnik_id = $7
+		SET korisnicko_ime = :1, email = :2, ime = :3, prezime = :4, 
+		    uloga_id = :5, status = :6
+		WHERE korisnik_id = :7
 	`
 
 	_, err := s.db.Exec(query, user.KorisnickoIme, user.Email, user.Ime,
@@ -85,7 +85,7 @@ func (s *UserService) UpdateUser(userID int, user models.Korisnici) error {
 }
 
 func (s *UserService) DeleteUser(userID int) error {
-	query := `DELETE FROM korisnici WHERE korisnik_id = $1`
+	query := `DELETE FROM korisnici WHERE korisnik_id = :1`
 	result, err := s.db.Exec(query, userID)
 	if err != nil {
 		return err

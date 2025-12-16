@@ -25,37 +25,35 @@ func NewAnalyticsService(db *sql.DB) *AnalyticsService {
 
 // LogActivity logs a user activity
 func (s *AnalyticsService) LogActivity(korisnikID *int, req models.ActivityLogRequest) error {
-	// Use actual column names from database: korisnik_id, tip_aktivnosti, opis, ciljani_entitet, ciljani_id, datuma
+	// Use actual column names from database: korisnik_id, tip_aktivnosti, entitet_tip, entitet_id, opis
 	query := `
 		INSERT INTO logaktivnosti (
-			korisnik_id, tip_aktivnosti, ciljani_entitet, ciljani_id, opis
-		) VALUES ($1, $2, $3, $4, $5)
-		RETURNING log_id
+			korisnik_id, tip_aktivnosti, entitet_tip, entitet_id, opis
+		) VALUES (:1, :2, :3, :4, :5)
 	`
 
-	var logID int
-	var ciljaniEntitet *string
-	var ciljaniID *int
+	var entitetTip *string
+	var entitetID *int
 	var opis *string
 
 	if req.EntitetTip != "" {
-		ciljaniEntitet = &req.EntitetTip
+		entitetTip = &req.EntitetTip
 	}
 	if req.EntitetID > 0 {
-		ciljaniID = &req.EntitetID
+		entitetID = &req.EntitetID
 	}
 	if req.Opis != "" {
 		opis = &req.Opis
 	}
 
-	err := s.db.QueryRow(
+	_, err := s.db.Exec(
 		query,
 		korisnikID,
 		req.TipAktivnosti,
-		ciljaniEntitet,
-		ciljaniID,
+		entitetTip,
+		entitetID,
 		opis,
-	).Scan(&logID)
+	)
 
 	if err != nil {
 		return fmt.Errorf("failed to log activity: %w", err)
@@ -86,7 +84,7 @@ func (s *AnalyticsService) GetRecentActivity(limit int) ([]models.SkornjeAktivno
 		FROM logaktivnosti la
 		LEFT JOIN korisnici k ON la.korisnik_id = k.korisnik_id
 		ORDER BY la.datuma DESC
-		LIMIT $1
+		LIMIT :1
 	`
 
 	rows, err := s.db.Query(query, limit)
@@ -280,7 +278,7 @@ func (s *AnalyticsService) GetTopContributors(limit int) ([]map[string]interface
 		JOIN dokumenti d ON k.korisnik_id = d.kreirao_korisnik_id
 		GROUP BY k.korisnik_id, k.ime, k.prezime, k.korisnicko_ime
 		ORDER BY broj_dokumenata DESC
-		LIMIT $1
+		LIMIT :1
 	`
 
 	rows, err := s.db.Query(query, limit)

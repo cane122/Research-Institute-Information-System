@@ -106,7 +106,7 @@ npm run build      # Build ceo projekat
 ### Backend:
 - **Go** - Server-side logika
 - **Wails v2** - Desktop aplikacija framework
-- **PostgreSQL** - Baza podataka (spremna za integraciju)
+- **Oracle Database** - Relational database (migrated from PostgreSQL)
 
 ## 📦 Instaliranje
 
@@ -155,10 +155,43 @@ wails doctor
 wails init
 ```
 
-#### 4. PostgreSQL instalacija
-- **Windows:** Preuzmite sa [postgresql.org](https://www.postgresql.org/download/windows/)
-- **macOS:** `brew install postgresql`
-- **Linux:** `sudo apt install postgresql postgresql-contrib`
+#### 4. Oracle Database instalacija
+- **Windows/macOS/Linux:** Preuzmite sa [oracle.com/database](https://www.oracle.com/database/technologies/xe-downloads.html)
+- **Express Edition (XE)** je besplatna za development
+- **Oracle Instant Client** je takođe potreban za godror driver
+- **Detaljno uputstvo:** Pogledajte [ORACLE_MIGRATION.md](ORACLE_MIGRATION.md)
+
+### Oracle Database setup:
+
+1. **Kreirajte bazu i učitajte šemu:**
+   ```bash
+   # Konektujte se na Oracle
+   sqlplus system/oracle@localhost:1521/XEPDB1
+   
+   # Pokrenite schema script
+   @database/schema_oracle.sql
+   
+   # Učitajte test podatke (opciono)
+   @database/dummy_data_oracle.sql
+   ```
+
+2. **Konfigurišite environment varijable:**
+   Kreirajte `.env` fajl u root direktorijumu:
+   ```env
+   DB_HOST=localhost
+   DB_PORT=1521
+   DB_USER=system
+   DB_PASSWORD=oracle
+   DB_SERVICE_NAME=XEPDB1
+   OPENAI_API_KEY=your_openai_key_here
+   ```
+
+3. **Instalirajte Go dependencies:**
+   ```bash
+   go mod download
+   ```
+
+Za detaljnije informacije o Oracle migraciji, pogledajte [ORACLE_MIGRATION.md](ORACLE_MIGRATION.md).
 
 ### Frontend setup:
 

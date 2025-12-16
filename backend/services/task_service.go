@@ -29,7 +29,7 @@ func (s *TaskService) GetTasksByProject(projectID int) ([]models.Zadaci, error) 
 		JOIN projekti p ON z.projekat_id = p.projekat_id
 		JOIN faze f ON z.faza_id = f.faza_id
 		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
-		WHERE z.projekat_id = $1
+		WHERE z.projekat_id = :1
 		ORDER BY z.kreiran_datuma DESC
 	`
 
@@ -67,7 +67,7 @@ func (s *TaskService) GetTasksByUser(userID int) ([]models.Zadaci, error) {
 		JOIN projekti p ON z.projekat_id = p.projekat_id
 		JOIN faze f ON z.faza_id = f.faza_id
 		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
-		WHERE z.dodeljen_korisniku_id = $1
+		WHERE z.dodeljen_korisniku_id = :1
 		ORDER BY z.rok ASC NULLS LAST, z.prioritet DESC
 	`
 
@@ -106,7 +106,7 @@ func (s *TaskService) GetTaskByID(taskID int) (models.Zadaci, error) {
 		JOIN projekti p ON z.projekat_id = p.projekat_id
 		JOIN faze f ON z.faza_id = f.faza_id
 		LEFT JOIN korisnici k ON z.dodeljen_korisniku_id = k.korisnik_id
-		WHERE z.zadatak_id = $1
+		WHERE z.zadatak_id = :1
 	`
 
 	err := s.db.QueryRow(query, taskID).Scan(
@@ -126,7 +126,7 @@ func (s *TaskService) CreateTask(req models.CreateTaskRequest) error {
 		SELECT f.faza_id 
 		FROM faze f
 		JOIN projekti p ON f.radni_tok_id = p.radni_tok_id
-		WHERE p.projekat_id = $1
+		WHERE p.projekat_id = :1
 		ORDER BY f.redosled ASC
 		LIMIT 1
 	`
@@ -139,7 +139,7 @@ func (s *TaskService) CreateTask(req models.CreateTaskRequest) error {
 	query := `
 		INSERT INTO zadaci (projekat_id, faza_id, naziv_zadatka, opis, 
 		                   dodeljen_korisniku_id, rok, prioritet)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		VALUES (:1, :2, :3, :4, :5, :6, :7)
 	`
 
 	_, err = s.db.Exec(query, req.ProjekatID, faseID, req.NazivZadatka,
@@ -201,7 +201,7 @@ func (s *TaskService) UpdateTask(taskID int, req models.UpdateTaskRequest) error
 	}
 
 	query := fmt.Sprintf("UPDATE zadaci SET %s WHERE zadatak_id = $%d",
-		fmt.Sprintf("%s", setParts[0]), argCount)
+		setParts[0], argCount)
 	for i := 1; i < len(setParts); i++ {
 		query = query[:len(query)-len(fmt.Sprintf(" WHERE zadatak_id = $%d", argCount))] +
 			fmt.Sprintf(", %s WHERE zadatak_id = $%d", setParts[i], argCount)
@@ -213,7 +213,7 @@ func (s *TaskService) UpdateTask(taskID int, req models.UpdateTaskRequest) error
 }
 
 func (s *TaskService) DeleteTask(taskID int) error {
-	query := `DELETE FROM zadaci WHERE zadatak_id = $1`
+	query := `DELETE FROM zadaci WHERE zadatak_id = :1`
 	result, err := s.db.Exec(query, taskID)
 	if err != nil {
 		return err
@@ -237,7 +237,7 @@ func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, e
 		       kz.datuma_kreiranja, k.korisnicko_ime as ime_korisnika
 		FROM komentari_zadataka kz
 		JOIN korisnici k ON kz.korisnik_id = k.korisnik_id
-		WHERE kz.zadatak_id = $1
+		WHERE kz.zadatak_id = :1
 		ORDER BY kz.datuma_kreiranja DESC
 	`
 
@@ -266,7 +266,7 @@ func (s *TaskService) GetTaskComments(taskID int) ([]models.KomentariZadataka, e
 func (s *TaskService) AddTaskComment(taskID, userID int, comment string) error {
 	query := `
 		INSERT INTO komentari_zadataka (zadatak_id, korisnik_id, tekst_komentara)
-		VALUES ($1, $2, $3)
+		VALUES (:1, :2, :3)
 	`
 
 	_, err := s.db.Exec(query, taskID, userID, comment)

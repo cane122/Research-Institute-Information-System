@@ -13,6 +13,7 @@
             📊 Analytics
           </button>
           <button 
+            v-if="canCreateDocuments"
             class="btn btn-primary" 
             @click="goToAddDocument"
           >
@@ -205,32 +206,29 @@
                         <div class="cell">{{ formatDate(doc.poslednja_izmena || doc.datuma_postavke) }}</div>
                         <div class="cell actions">
                           <button 
-                            v-if="doc.permissions?.canRead"
                             class="action-btn view-btn" 
+                            :disabled="!doc.permissions?.canRead"
                             @click="previewDocument(doc)"
-                            title="Preview"
+                            :title="doc.permissions?.canRead ? 'Preview' : 'No read permission'"
                           >
                             View
                           </button>
                           <button 
-                            v-if="doc.permissions?.canWrite"
                             class="action-btn edit-btn" 
+                            :disabled="!doc.permissions?.canWrite"
                             @click="editDocument(doc)"
-                            title="Edit"
+                            :title="doc.permissions?.canWrite ? 'Edit' : 'No write permission'"
                           >
                             Edit
                           </button>
                           <button 
-                            v-if="doc.permissions?.canDelete"
                             class="action-btn delete-btn" 
+                            :disabled="!doc.permissions?.canDelete"
                             @click="deleteDocument(doc.dokument_id)"
-                            title="Delete"
+                            :title="doc.permissions?.canDelete ? 'Delete' : 'No delete permission'"
                           >
                             Delete
                           </button>
-                          <span v-if="!doc.permissions?.canRead && !doc.permissions?.canWrite && !doc.permissions?.canDelete" class="no-access-text">
-                            No Access
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -309,32 +307,29 @@
                     <div class="cell">{{ doc.naziv_projekta || 'N/A' }}</div>
                     <div class="cell actions">
                       <button 
-                        v-if="doc.permissions?.canRead"
                         class="action-btn view-btn" 
+                        :disabled="!doc.permissions?.canRead"
                         @click="previewDocument(doc)"
-                        title="Preview"
+                        :title="doc.permissions?.canRead ? 'Preview' : 'No read permission'"
                       >
                         View
                       </button>
                       <button 
-                        v-if="doc.permissions?.canWrite"
                         class="action-btn edit-btn" 
+                        :disabled="!doc.permissions?.canWrite"
                         @click="editDocument(doc)"
-                        title="Edit"
+                        :title="doc.permissions?.canWrite ? 'Edit' : 'No write permission'"
                       >
                         Edit
                       </button>
                       <button 
-                        v-if="doc.permissions?.canDelete"
                         class="action-btn delete-btn" 
+                        :disabled="!doc.permissions?.canDelete"
                         @click="deleteDocument(doc.dokument_id)"
-                        title="Delete"
+                        :title="doc.permissions?.canDelete ? 'Delete' : 'No delete permission'"
                       >
                         Delete
                       </button>
-                      <span v-if="!doc.permissions?.canRead && !doc.permissions?.canWrite && !doc.permissions?.canDelete" class="no-access-text">
-                        No Access
-                      </span>
                     </div>
                   </div>
                 </div>
@@ -342,41 +337,8 @@
             </div>
             <!-- End of documents table v-else -->
 
-            <!-- Pagination (only for regular table view) -->
-            <div class="pagination" v-if="!showFolderPreview && totalPages > 1">
-              <button 
-                class="page-btn" 
-                :disabled="currentPage === 1"
-                @click="currentPage = 1"
-              >
-                First
-              </button>
-              <button 
-                class="page-btn" 
-                :disabled="currentPage === 1"
-                @click="currentPage--"
-              >
-                Previous
-              </button>
-              
-              <span class="page-info">
-                Page {{ currentPage }} of {{ totalPages }}
-              </span>
-              
-              <button 
-                class="page-btn" 
-                :disabled="currentPage === totalPages"
-                @click="currentPage++"
-              >
-                Next
-              </button>
-              <button 
-                class="page-btn" 
-                :disabled="currentPage === totalPages"
-                @click="currentPage = totalPages"
-              >
-                Last
-              </button>
+            <!-- Pagination removed - showing all documents -->
+            <div class="pagination" v-if="false">
             </div>
           </div>
         </div>
@@ -444,6 +406,17 @@ const filteredTags = computed(() => {
   return allTags.value.filter(tag => 
     tag.naziv_taga.toLowerCase().includes(query)
   )
+})
+
+// Global permissions
+const canCreateDocuments = computed(() => {
+  // All authenticated users can upload documents
+  return authStore.isAuthenticated
+})
+
+const canViewAnalytics = computed(() => {
+  // Only admins can view analytics
+  return authStore.isAdmin
 })
 
 const availableTypes = computed(() => {
@@ -563,13 +536,12 @@ const groupedDocuments = computed(() => {
 })
 
 const paginatedDocuments = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value
-  const end = start + itemsPerPage.value
-  return sortedDocuments.value.slice(start, end)
+  // Show all documents without pagination
+  return sortedDocuments.value
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(sortedDocuments.value.length / itemsPerPage.value)
+  return 1 // Always 1 page since we show all documents
 })
 
 const allSelected = computed(() => {
@@ -732,13 +704,18 @@ async function loadDocuments() {
     loading.value = true
     error.value = ''
     
-    const { GetAllDocuments, GetAllTags, GetDocumentTags, CheckUserPermission } = window.go.main.App
+    const { GetDocumentsForUser, GetAllTags, GetDocumentTags, CheckUserPermission } = window.go.main.App
+    
+    console.log('🔍 Loading documents...')
     
     // Load documents and tags in parallel
     const [docs, tags] = await Promise.all([
-      GetAllDocuments(),
+      GetDocumentsForUser(),
       GetAllTags()
     ])
+    
+    console.log('📄 Raw documents from backend:', docs)
+    console.log('🏷️ Tags from backend:', tags)
     
     // Load tags and permissions for each document
     if (docs && docs.length > 0) {
@@ -754,6 +731,8 @@ async function loadDocuments() {
               CheckUserPermission(doc.dokument_id, 'write').catch(() => false),
               CheckUserPermission(doc.dokument_id, 'delete').catch(() => false)
             ])
+            
+            console.log(`📋 Document ${doc.dokument_id} permissions:`, { canRead, canWrite, canDelete })
             
             return { 
               ...doc, 
@@ -809,6 +788,7 @@ onMounted(() => {
 /* Override global styles for folder preview */
 .documents-table {
   overflow: visible !important;
+  width: 100%;
 }
 
 .project-folder {
@@ -917,5 +897,33 @@ onMounted(() => {
   font-size: 0.85em;
   font-style: italic;
   padding: 4px 8px;
+}
+
+/* Disabled button styles */
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: #e0e0e0;
+  color: #999;
+}
+
+.view-btn:disabled {
+  background-color: #e8eaf6;
+  color: #9fa8da;
+}
+
+.edit-btn:disabled {
+  background-color: #fff3e0;
+  color: #ffb74d;
+}
+
+.delete-btn:disabled {
+  background-color: #ffebee;
+  color: #ef5350;
+}
+
+.action-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }
 </style>

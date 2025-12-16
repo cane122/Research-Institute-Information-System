@@ -22,7 +22,7 @@ func (r *UserRepository) GetByID(id int) (*models.User, error) {
 		       u.naziv_uloge
 		FROM Korisnici k
 		JOIN Uloge u ON k.uloga_id = u.uloga_id
-		WHERE k.korisnik_id = $1
+		WHERE k.korisnik_id = :1
 	`
 
 	var user models.User
@@ -56,7 +56,7 @@ func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
 		       u.naziv_uloge
 		FROM Korisnici k
 		JOIN Uloge u ON k.uloga_id = u.uloga_id
-		WHERE k.korisnicko_ime = $1
+		WHERE k.korisnicko_ime = :1
 	`
 
 	var user models.User
@@ -86,12 +86,12 @@ func (r *UserRepository) GetByUsername(username string) (*models.User, error) {
 func (r *UserRepository) Create(user *models.User) error {
 	query := `
 		INSERT INTO Korisnici (korisnicko_ime, email, hash_sifre, ime, prezime, uloga_id, status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING korisnik_id, kreiran_datuma
+		VALUES (:1, :2, :3, :4, :5, :6, :7)
+		RETURNING korisnik_id, kreiran_datuma INTO :8, :9
 	`
 
 	err := r.db.QueryRow(query, user.KorisnickoIme, user.Email, user.HashSifre,
-		user.Ime, user.Prezime, user.UlogaID, user.Status).Scan(&user.KorisnikID, &user.KreiranDatuma)
+		user.Ime, user.Prezime, user.UlogaID, user.Status, &user.KorisnikID, &user.KreiranDatuma).Err()
 
 	return err
 }
@@ -99,8 +99,8 @@ func (r *UserRepository) Create(user *models.User) error {
 func (r *UserRepository) Update(user *models.User) error {
 	query := `
 		UPDATE Korisnici 
-		SET korisnicko_ime = $1, email = $2, ime = $3, prezime = $4, uloga_id = $5, status = $6
-		WHERE korisnik_id = $7
+		SET korisnicko_ime = :1, email = :2, ime = :3, prezime = :4, uloga_id = :5, status = :6
+		WHERE korisnik_id = :7
 	`
 
 	_, err := r.db.Exec(query, user.KorisnickoIme, user.Email, user.Ime,
@@ -110,13 +110,13 @@ func (r *UserRepository) Update(user *models.User) error {
 }
 
 func (r *UserRepository) UpdatePassword(userID int, passwordHash string) error {
-	query := `UPDATE Korisnici SET hash_sifre = $1 WHERE korisnik_id = $2`
+	query := `UPDATE Korisnici SET hash_sifre = :1 WHERE korisnik_id = :2`
 	_, err := r.db.Exec(query, passwordHash, userID)
 	return err
 }
 
 func (r *UserRepository) UpdateLastLogin(userID int) error {
-	query := `UPDATE Korisnici SET poslednja_prijava = $1 WHERE korisnik_id = $2`
+	query := `UPDATE Korisnici SET poslednja_prijava = :1 WHERE korisnik_id = :2`
 	_, err := r.db.Exec(query, time.Now(), userID)
 	return err
 }

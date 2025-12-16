@@ -51,7 +51,7 @@ func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, erro
 	query := `
 		SELECT faza_id, radni_tok_id, naziv_faze, redosled
 		FROM faze
-		WHERE radni_tok_id = $1
+		WHERE radni_tok_id = :1
 		ORDER BY redosled
 	`
 
@@ -79,7 +79,7 @@ func (s *WorkflowService) GetWorkflowPhases(workflowID int) ([]models.Faze, erro
 func (s *WorkflowService) CreateWorkflow(workflow models.RadniTokovi) error {
 	query := `
 		INSERT INTO radni_tokovi (naziv, tip_toka, opis, da_li_je_sablon)
-		VALUES ($1, $2, $3, $4)
+		VALUES (:1, :2, :3, :4)
 	`
 
 	_, err := s.db.Exec(query, workflow.Naziv, workflow.TipToka,
@@ -91,7 +91,7 @@ func (s *WorkflowService) CreateWorkflow(workflow models.RadniTokovi) error {
 func (s *WorkflowService) CreatePhase(phase models.Faze) error {
 	query := `
 		INSERT INTO faze (radni_tok_id, naziv_faze, redosled)
-		VALUES ($1, $2, $3)
+		VALUES (:1, :2, :3)
 	`
 
 	_, err := s.db.Exec(query, phase.RadniTokID, phase.NazivFaze, phase.Redosled)

@@ -18,7 +18,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	_ "github.com/sijms/go-ora/v2"
 )
 
 //go:embed all:frontend/dist
@@ -62,27 +62,29 @@ func maskPassword(password string) string {
 func (a *App) testDatabaseConnections() {
 	log.Printf("=== DIJAGNOSTIKA KONEKCIJE ===")
 
-	// Test različitih konfiguracija
+	// Test različitih konfiguracija using SID
 	configs := []struct {
 		name     string
 		host     string
+		port     string
 		user     string
 		password string
-		dbname   string
+		sid      string
 	}{
-		{"Default", "localhost:5432", "postgres", "password", "research_institute"},
-		{"Alternative Password", "localhost:5432", "postgres", "postgres", "research_institute"},
-		{"Different Port", "localhost:5433", "postgres", "password", "research_institute"},
-		{"System DB", "localhost:5432", "postgres", "password", "postgres"},
+		{"Default XE SID", "localhost", "1521", "SYSTEM", "", "xe"},
+		{"XE with password", "localhost", "1521", "SYSTEM", "oracle", "xe"},
+		{"Alternative Port", "localhost", "1522", "SYSTEM", "", "xe"},
 	}
 
 	for _, config := range configs {
-		log.Printf("Testiram %s: %s@%s/%s", config.name, config.user, config.host, config.dbname)
+		log.Printf("Testiram %s: %s@%s:%s (SID=%s)", config.name, config.user, config.host, config.port, config.sid)
 
-		connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
-			config.user, config.password, config.host, config.dbname)
+		// go-ora connection URL format: oracle://user:password@host:port/service_name
+		// For SID, we use the SID as service name
+		connStr := fmt.Sprintf("oracle://%s:%s@%s:%s/%s",
+			config.user, config.password, config.host, config.port, config.sid)
 
-		db, err := sql.Open("postgres", connStr)
+		db, err := sql.Open("oracle", connStr)
 		if err != nil {
 			log.Printf("  ❌ Open greška: %v", err)
 			continue
@@ -136,29 +138,31 @@ func (a *App) initializeDatabase() {
 	// Initialize database connection with better error handling
 	// Prioritet: .env file > environment variables > defaults
 	dbHost := getEnvOrDefault("DB_HOST", "localhost")
-	dbPort := getEnvOrDefault("DB_PORT", "5432")
-	dbUser := getEnvOrDefault("DB_USER", "postgres")
-	dbPassword := getEnvOrDefault("DB_PASSWORD", "123")
-	dbName := getEnvOrDefault("DB_NAME", "research_institute")
+	dbPort := getEnvOrDefault("DB_PORT", "1521")
+	dbUser := getEnvOrDefault("DB_USER", "SYSTEM")
+	dbPassword := getEnvOrDefault("DB_PASSWORD", "")
+	dbSID := getEnvOrDefault("DB_SID", "xe")
 
 	log.Printf("Pokušavam konekciju na bazu:")
 	log.Printf("  Host: %s", dbHost)
 	log.Printf("  Port: %s", dbPort)
 	log.Printf("  User: %s", dbUser)
-	log.Printf("  Database: %s", dbName)
+	log.Printf("  SID: %s", dbSID)
 	log.Printf("  Password: %s", maskPassword(dbPassword))
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// go-ora connection URL format: oracle://user:password@host:port/service_name
+	// For SID, we use the SID as service name
+	connStr := fmt.Sprintf("oracle://%s:%s@%s:%s/%s",
+		dbUser, dbPassword, dbHost, dbPort, dbSID)
 
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("oracle", connStr)
 	if err != nil {
 		log.Printf("❌ GREŠKA: Failed to open database connection: %v", err)
 		log.Printf("Application will continue without database. To configure database:")
-		log.Printf("1. Install PostgreSQL")
-		log.Printf("2. Create database 'research_institute'")
-		log.Printf("3. Set environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME")
-		log.Printf("4. Run the SQL schema from database/schema.sql")
+		log.Printf("1. Install Oracle Database (XE or Standard)")
+		log.Printf("2. Create user with appropriate privileges")
+		log.Printf("3. Set environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_SID")
+		log.Printf("4. Run the SQL schema from database/schema_oracle.sql")
 		a.testDatabaseConnections()
 		return
 	}
@@ -167,14 +171,14 @@ func (a *App) initializeDatabase() {
 	log.Printf("Testiram konekciju...")
 	if err := db.Ping(); err != nil {
 		log.Printf("❌ GREŠKA: Failed to ping database: %v", err)
-		log.Printf("Database connection string (masked): postgres://%s:***@%s/%s?sslmode=disable", dbUser, dbHost, dbName)
+		log.Printf("Database connection string (masked): %s:***@%s:%s:%s", dbUser, dbHost, dbPort, dbSID)
 		log.Printf("Application will continue without database.")
 		a.testDatabaseConnections()
 		return
 	}
 
 	a.db = db
-	log.Printf("Successfully connected to PostgreSQL database: %s", dbName) // Initialize repositories
+	log.Printf("✅ Successfully connected to Oracle database (SID: %s)", dbSID) // Initialize repositories
 	a.userRepo = repositories.NewUserRepository(db)
 	a.projectRepo = repositories.NewProjectRepository(db)
 
@@ -360,6 +364,19 @@ func (a *App) GetAllDocuments() ([]models.Dokumenti, error) {
 	return a.documentService.GetAllDocuments()
 }
 
+// GetDocumentsForUser returns only documents that the current user can access
+func (a *App) GetDocumentsForUser() ([]models.Dokumenti, error) {
+	if a.currentUser == nil {
+		return nil, errors.New("niste prijavljeni")
+	}
+
+	if a.documentService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.documentService.GetDocumentsForUser(a.currentUser.KorisnikID)
+}
+
 // GetAllTags returns all available tags from the database
 func (a *App) GetAllTags() ([]models.Tag, error) {
 	if a.currentUser == nil {
@@ -383,6 +400,16 @@ func (a *App) GetDocumentByID(documentID int) (models.Dokumenti, error) {
 		return models.Dokumenti{}, errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// Check if user has read permission
+	hasPermission, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return models.Dokumenti{}, fmt.Errorf("greška pri proveri dozvola: %w", err)
+	}
+
+	if !hasPermission {
+		return models.Dokumenti{}, errors.New("nemate dozvolu za pregled ovog dokumenta")
+	}
+
 	return a.documentService.GetDocumentByID(documentID)
 }
 
@@ -396,6 +423,16 @@ func (a *App) GetDocumentVersions(documentID int) ([]models.VerzijeDokumenata, e
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// Check if user has read permission
+	hasPermission, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return nil, fmt.Errorf("greška pri proveri dozvola: %w", err)
+	}
+
+	if !hasPermission {
+		return nil, errors.New("nemate dozvolu za pregled verzija ovog dokumenta")
+	}
+
 	return a.documentService.GetDocumentVersions(documentID)
 }
 
@@ -407,6 +444,16 @@ func (a *App) GetDocumentTags(documentID int) ([]models.Tagovi, error) {
 
 	if a.documentService == nil {
 		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user has read permission
+	hasPermission, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "read")
+	if err != nil {
+		return nil, fmt.Errorf("greška pri proveri dozvola: %w", err)
+	}
+
+	if !hasPermission {
+		return nil, errors.New("nemate dozvolu za pregled tagova ovog dokumenta")
 	}
 
 	return a.documentService.GetDocumentTags(documentID)
@@ -435,6 +482,16 @@ func (a *App) UpdateDocument(documentID int, req models.UploadDocumentRequest) e
 		return errors.New("sistem nije povezan sa bazom podataka")
 	}
 
+	// Check if user has write permission
+	hasPermission, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "write")
+	if err != nil {
+		return fmt.Errorf("greška pri proveri dozvola: %w", err)
+	}
+
+	if !hasPermission {
+		return errors.New("nemate dozvolu za izmenu ovog dokumenta")
+	}
+
 	return a.documentService.UpdateDocument(documentID, req)
 }
 
@@ -446,6 +503,16 @@ func (a *App) DeleteDocument(documentID int) error {
 
 	if a.documentService == nil {
 		return errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	// Check if user has delete permission
+	hasPermission, err := a.documentService.CheckUserPermission(documentID, a.currentUser.KorisnikID, "delete")
+	if err != nil {
+		return fmt.Errorf("greška pri proveri dozvola: %w", err)
+	}
+
+	if !hasPermission {
+		return errors.New("nemate dozvolu za brisanje ovog dokumenta")
 	}
 
 	return a.documentService.DeleteDocument(documentID)
