@@ -37,7 +37,7 @@
         
         <div class="stat-card storage">
           <div class="stat-content">
-            <h3>{{ userStorage.toFixed(2) }} MB</h3>
+            <h3>{{ formattedStorage }}</h3>
             <p>Zauzetost dokumenata</p>
           </div>
           <div class="stat-icon">💾</div>
@@ -153,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Layout from '../components/Layout.vue'
 import { useAuthStore } from '../stores/auth'
 import { GetUserDocumentSize, GetUserDocumentCount } from '../../wailsjs/go/main/App'
@@ -170,6 +170,24 @@ const stats = ref({
 
 const userStorage = ref(0)
 const userDocuments = ref(0)
+
+// Computed property for formatted storage size
+const formattedStorage = computed(() => {
+  const sizeInMB = userStorage.value
+  
+  if (sizeInMB === 0) {
+    return '0 MB'
+  } else if (sizeInMB < 1) {
+    // Less than 1 MB, show in KB
+    return `${(sizeInMB * 1024).toFixed(2)} KB`
+  } else if (sizeInMB < 1024) {
+    // Less than 1 GB, show in MB
+    return `${sizeInMB.toFixed(2)} MB`
+  } else {
+    // 1 GB or more, show in GB
+    return `${(sizeInMB / 1024).toFixed(2)} GB`
+  }
+})
 
 const recentActivities = ref([
   {
@@ -231,9 +249,12 @@ const projectsProgress = ref([
 
 // Methods
 async function loadDashboardData() {
+  console.log('Loading dashboard data...')
+  
   // Load user document storage size
   try {
     const size = await GetUserDocumentSize()
+    console.log('User storage size received:', size, 'Type:', typeof size)
     userStorage.value = size || 0
   } catch (error) {
     console.error('Error loading user storage:', error)
@@ -243,13 +264,14 @@ async function loadDashboardData() {
   // Load user document count
   try {
     const count = await GetUserDocumentCount()
+    console.log('User document count received:', count, 'Type:', typeof count)
     userDocuments.value = count || 0
   } catch (error) {
     console.error('Error loading user documents:', error)
     userDocuments.value = 0
   }
   
-  console.log('Dashboard data loaded')
+  console.log('Dashboard data loaded - Storage:', userStorage.value, 'Documents:', userDocuments.value)
 }
 
 // Lifecycle

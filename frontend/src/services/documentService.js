@@ -128,7 +128,7 @@ export class DocumentService {
       // Convert file to byte array
       const fileData = await this.fileToByteArray(file)
       
-      // Prepare request object
+      // Prepare request object - send null instead of empty array for tags to avoid Oracle "incorrect array type" error
       const request = {
         naziv_dokumenta: documentData.name,
         projekat_id: documentData.projectId || null,
@@ -136,16 +136,20 @@ export class DocumentService {
         opis: documentData.description || '',
         tip_dokumenta: documentData.type || 'Document',
         jezik_dokumenta: documentData.language || 'Serbian',
-        tagovi: documentData.tags || [],
+        tagovi: (documentData.tags && documentData.tags.length > 0) ? documentData.tags : null,
         kljucne_reci: documentData.keywords || ''
       }
+
+      console.log('Uploading document with request:', request)
 
       // UploadDocument now returns the document ID
       const documentId = await UploadDocument(request, fileData, file.name)
       return documentId
     } catch (error) {
       console.error('Error uploading document:', error)
-      throw new Error('Greška pri učitavanju dokumenta: ' + error.message)
+      // Handle error object properly - error might be a string or Error object
+      const errorMessage = error?.message || error?.toString() || String(error) || 'Nepoznata greška'
+      throw new Error('Greška pri učitavanju dokumenta: ' + errorMessage)
     }
   }
 

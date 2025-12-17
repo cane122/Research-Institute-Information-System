@@ -528,10 +528,11 @@ async function generateDescription() {
     }
   } catch (err) {
     console.error('Error generating description:', err)
-    if (err.message.includes('API key not configured')) {
+    const errMsg = err?.message || String(err)
+    if (errMsg.includes('API key not configured')) {
       alert('⚠️ OpenAI API key not configured. Please set OPENAI_API_KEY environment variable and restart the application.')
     } else {
-      alert('Failed to generate description: ' + err.message)
+      alert('Failed to generate description: ' + errMsg)
     }
   } finally {
     isGeneratingDescription.value = false
@@ -570,10 +571,11 @@ async function generateKeywords() {
     }
   } catch (err) {
     console.error('Error generating keywords:', err)
-    if (err.message.includes('API key not configured')) {
+    const errMsg = err?.message || String(err)
+    if (errMsg.includes('API key not configured')) {
       alert('⚠️ OpenAI API key not configured. Please set OPENAI_API_KEY environment variable and restart the application.')
     } else {
-      alert('Failed to generate keywords: ' + err.message)
+      alert('Failed to generate keywords: ' + errMsg)
     }
   } finally {
     isGeneratingKeywords.value = false
@@ -638,10 +640,11 @@ Please select ONLY from the available tags listed above.`
     }
   } catch (err) {
     console.error('Error generating tags:', err)
-    if (err.message.includes('API key not configured')) {
+    const errMsg = err?.message || String(err)
+    if (errMsg.includes('API key not configured')) {
       alert('⚠️ OpenAI API key not configured. Please set OPENAI_API_KEY environment variable and restart the application.')
     } else {
-      alert('Failed to generate tags: ' + err.message)
+      alert('Failed to generate tags: ' + errMsg)
     }
   } finally {
     isGeneratingTags.value = false

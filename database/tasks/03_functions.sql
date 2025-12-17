@@ -10,7 +10,8 @@ IS
 BEGIN
     SELECT COALESCE(SUM(vd.velicina_fajla_mb), 0) INTO v_velicina
     FROM VerzijeDokumenata vd
-    WHERE vd.postavio_korisnik_id = p_korisnik_id;
+    JOIN Dokumenti d ON vd.dokument_id = d.dokument_id
+    WHERE d.kreirao_korisnik_id = p_korisnik_id;
     
     RETURN ROUND(v_velicina, 2);
 END ukupna_velicina_korisnika;

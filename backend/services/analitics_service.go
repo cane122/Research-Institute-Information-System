@@ -7,6 +7,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/cane/research-institute-system/backend/models"
 )
@@ -56,9 +57,11 @@ func (s *AnalyticsService) GetUserDocumentSize(userID int) (float64, error) {
 	var size float64
 	err := s.db.QueryRow(query, userID).Scan(&size)
 	if err != nil {
+		log.Printf("Error getting user document size for userID %d: %v", userID, err)
 		return 0, fmt.Errorf("failed to get user document size: %w", err)
 	}
 
+	log.Printf("User %d document size: %.2f MB", userID, size)
 	return size, nil
 }
 

@@ -7,6 +7,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -250,6 +251,14 @@ func (s *DocumentService) GetDocumentByID(documentID int) (models.Dokumenti, err
 }
 
 func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileData []byte, fileName string, userID int) (int, error) {
+	// Debug logging
+	log.Printf("UploadDocument called with request: %+v", req)
+	log.Printf("File size: %d bytes, fileName: %s, userID: %d", len(fileData), fileName, userID)
+	log.Printf("Tags type: %T, Tags value: %v, Tags length: %d", req.Tagovi, req.Tagovi, len(req.Tagovi))
+	for i, tag := range req.Tagovi {
+		log.Printf("  Tag[%d]: %q (type: %T)", i, tag, tag)
+	}
+
 	// Create upload directory if it doesn't exist
 	if err := os.MkdirAll(s.uploadPath, 0755); err != nil {
 		return 0, fmt.Errorf("failed to create upload directory: %w", err)
@@ -262,19 +271,30 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	defer tx.Rollback()
 
 	// Insert document record
-	var documentID int
 	docQuery := `
 		INSERT INTO dokumenti (projekat_id, naziv_dokumenta, folder_id, opis, 
 		                      tip_dokumenta, jezik_dokumenta, kljucne_reci, kreirao_korisnik_id)
 		VALUES (:1, :2, :3, :4, :5, :6, :7, :8)
-		RETURNING dokument_id
 	`
 
-	err = tx.QueryRow(docQuery, req.ProjekatID, req.NazivDokumenta, req.FolderID,
-		req.Opis, req.TipDokumenta, req.JezikDokumenta, req.KljucneReci, userID).Scan(&documentID)
+	log.Printf("Executing query with params: projekatID=%v, naziv=%v, folderID=%v, opis=%v, tip=%v, jezik=%v, kljucne=%v, userID=%v",
+		req.ProjekatID, req.NazivDokumenta, req.FolderID, req.Opis, req.TipDokumenta, req.JezikDokumenta, req.KljucneReci, userID)
+
+	_, err = tx.Exec(docQuery, req.ProjekatID, req.NazivDokumenta, req.FolderID,
+		req.Opis, req.TipDokumenta, req.JezikDokumenta, req.KljucneReci, userID)
 	if err != nil {
+		log.Printf("Error inserting document: %v", err)
 		return 0, err
 	}
+
+	// Get the generated document ID
+	var documentID int
+	err = tx.QueryRow("SELECT dokumenti_seq.CURRVAL FROM DUAL").Scan(&documentID)
+	if err != nil {
+		log.Printf("Error getting document ID: %v", err)
+		return 0, err
+	}
+	log.Printf("Document inserted with ID: %d", documentID)
 
 	// Generate unique file path
 	timestamp := time.Now().Format("20060102_150405")
@@ -298,11 +318,11 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	// Calculate file size in MB
 	fileSizeMB := float64(len(fileData)) / (1024 * 1024)
 
-	// Insert document version
+	// Insert document version (using sequence verzije_dokumenata_seq)
 	versionQuery := `
-		INSERT INTO verzijedokumenata (dokument_id, verzija_oznaka, putanja_do_fajla, 
+		INSERT INTO verzijedokumenata (verzija_id, dokument_id, verzija_oznaka, putanja_do_fajla, 
 		                               velicina_fajla_mb, postavio_korisnik_id)
-		VALUES (:1, '1.0', :2, :3, :4)
+		VALUES (verzije_dokumenata_seq.NEXTVAL, :1, '1.0', :2, :3, :4)
 	`
 
 	_, err = tx.Exec(versionQuery, documentID, filePath, fileSizeMB, userID)
@@ -330,7 +350,12 @@ func (s *DocumentService) addDocumentTagInTx(tx *sql.Tx, documentID int, tagName
 	err := tx.QueryRow("SELECT tag_id FROM tagovi WHERE naziv_taga = :1", tagName).Scan(&tagID)
 	if err == sql.ErrNoRows {
 		// Create new tag
-		err = tx.QueryRow("INSERT INTO tagovi (naziv_taga) VALUES (:1) RETURNING tag_id", tagName).Scan(&tagID)
+		_, err = tx.Exec("INSERT INTO tagovi (naziv_taga) VALUES (:1)", tagName)
+		if err != nil {
+			return err
+		}
+		// Get the tag_id we just created
+		err = tx.QueryRow("SELECT tag_id FROM tagovi WHERE naziv_taga = :1", tagName).Scan(&tagID)
 		if err != nil {
 			return err
 		}
