@@ -7,7 +7,6 @@ package services
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -291,7 +290,7 @@ func (s *DocumentService) UploadDocument(req models.UploadDocumentRequest, fileD
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, strings.NewReader(string(fileData)))
+	_, err = file.Write(fileData)
 	if err != nil {
 		return 0, fmt.Errorf("failed to write file: %w", err)
 	}

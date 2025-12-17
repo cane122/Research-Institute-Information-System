@@ -227,6 +227,9 @@ const projectsProgress = ref([
     progress: 90,
     status: 'Pending'
   }
+])
+
+// Methods
 async function loadDashboardData() {
   // Load user document storage size
   try {
@@ -237,11 +240,16 @@ async function loadDashboardData() {
     userStorage.value = 0
   }
   
-  // In a real app, this would fetch other
-// Methods
-function loadDashboardData() {
-  // In a real app, this would fetch data from the backend
-  console.log('Loading dashboard data...')
+  // Load user document count
+  try {
+    const count = await GetUserDocumentCount()
+    userDocuments.value = count || 0
+  } catch (error) {
+    console.error('Error loading user documents:', error)
+    userDocuments.value = 0
+  }
+  
+  console.log('Dashboard data loaded')
 }
 
 // Lifecycle
