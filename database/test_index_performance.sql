@@ -47,6 +47,8 @@ BEGIN
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (1, 'LogAktivnosti - korisnik_id', 'INDEX SCAN', v_time_ms, v_count);
     DBMS_OUTPUT.PUT_LINE('  INDEX SCAN: ' || ROUND(v_time_ms, 2) || ' ms, ' || v_count || ' redova');
+    COMMIT;
+END;
 /
 
 -- ============================================================================
