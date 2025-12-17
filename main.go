@@ -646,6 +646,28 @@ func (a *App) GetTopContributors(limit int) ([]map[string]interface{}, error) {
 	return a.analyticsService.GetTopContributors(limit)
 }
 
+// GetUserDocumentSize retrieves total document size for current user
+func (a *App) GetUserDocumentSize() (float64, error) {
+	if a.analyticsService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	if a.currentUser == nil {
+		return 0, errors.New("korisnik nije prijavljen")
+	}
+
+	return a.analyticsService.GetUserDocumentSize(a.currentUser.KorisnikID)
+}
+
+// GetDocumentReportResults retrieves results from the complex document report
+func (a *App) GetDocumentReportResults() ([]models.DocumentReportResult, error) {
+	if a.analyticsService == nil {
+		return nil, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	return a.analyticsService.GetDocumentReportResults()
+}
+
 // ============================================================================
 // LLM Operations
 // ============================================================================

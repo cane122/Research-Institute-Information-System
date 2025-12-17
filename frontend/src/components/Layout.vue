@@ -68,7 +68,8 @@ const navigationItems = computed(() => {
     { path: '/dashboard', icon: '📊', text: 'Dashboard' },
     { path: '/projects', icon: '📁', text: 'Projekti' },
     { path: '/tasks', icon: '📋', text: 'Zadaci' },
-    { path: '/documents', icon: '📄', text: 'Dokumenti' }
+    { path: '/documents', icon: '📄', text: 'Dokumenti' },
+    { path: '/documents/report', icon: '📈', text: 'Izveštaj' }
   ]
   
   // Add admin-only items

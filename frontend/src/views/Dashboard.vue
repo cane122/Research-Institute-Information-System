@@ -35,12 +35,12 @@
           <div class="stat-icon">📋</div>
         </div>
         
-        <div class="stat-card users">
+        <div class="stat-card storage">
           <div class="stat-content">
-            <h3>{{ stats.users }}</h3>
-            <p>Korisnika u sistemu</p>
+            <h3>{{ userStorage.toFixed(2) }} MB</h3>
+            <p>Zauzetost dokumenata</p>
           </div>
-          <div class="stat-icon">👥</div>
+          <div class="stat-icon">💾</div>
         </div>
       </div>
       
@@ -91,6 +91,11 @@
             <router-link to="/documents" class="quick-btn btn-warning">
               <span class="btn-icon">📄</span>
               Upload dokument
+            </router-link>
+            
+            <router-link to="/documents/report" class="quick-btn btn-info">
+              <span class="btn-icon">📈</span>
+              PL/SQL Izveštaj
             </router-link>
             
             <router-link v-if="authStore.isAdmin" to="/users" class="quick-btn btn-secondary">
@@ -151,6 +156,7 @@
 import { ref, onMounted } from 'vue'
 import Layout from '../components/Layout.vue'
 import { useAuthStore } from '../stores/auth'
+import { GetUserDocumentSize } from '../../wailsjs/go/main/App'
 
 const authStore = useAuthStore()
 
@@ -161,6 +167,8 @@ const stats = ref({
   tasks: 23,
   users: 8
 })
+
+const userStorage = ref(0)
 
 const recentActivities = ref([
   {
@@ -218,8 +226,17 @@ const projectsProgress = ref([
     progress: 90,
     status: 'Pending'
   }
-])
-
+async function loadDashboardData() {
+  // Load user document storage size
+  try {
+    const size = await GetUserDocumentSize()
+    userStorage.value = size || 0
+  } catch (error) {
+    console.error('Error loading user storage:', error)
+    userStorage.value = 0
+  }
+  
+  // In a real app, this would fetch other
 // Methods
 function loadDashboardData() {
   // In a real app, this would fetch data from the backend

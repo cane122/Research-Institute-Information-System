@@ -9,6 +9,7 @@ import DocumentManagement from './views/documents/DocumentManagement.vue'
 import DocumentAdd from './views/documents/DocumentAdd.vue'
 import DocumentPreview from './views/documents/DocumentPreview.vue'
 import DocumentAnalytics from './views/documents/DocumentAnalytics.vue'
+import DocumentReport from './views/DocumentReport.vue'
 import Tasks from './views/Tasks.vue'
 import Users from './views/Users.vue'
 
@@ -58,6 +59,12 @@ const routes = [
     path: '/documents/analytics',
     name: 'DocumentAnalytics',
     component: DocumentAnalytics,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/documents/report',
+    name: 'DocumentReport',
+    component: DocumentReport,
     meta: { requiresAuth: true }
   },
   {

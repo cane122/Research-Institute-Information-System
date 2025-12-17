@@ -92,6 +92,8 @@ export namespace models {
 	    ime_kreirao?: string;
 	    naziv_faze?: string;
 	    broj_verzija?: number;
+	    ukupno_dokumenata?: number;
+	    prosecna_velicina_mb?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Dokumenti(source);
@@ -116,6 +118,8 @@ export namespace models {
 	        this.ime_kreirao = source["ime_kreirao"];
 	        this.naziv_faze = source["naziv_faze"];
 	        this.broj_verzija = source["broj_verzija"];
+	        this.ukupno_dokumenata = source["ukupno_dokumenata"];
+	        this.prosecna_velicina_mb = source["prosecna_velicina_mb"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -178,6 +182,8 @@ export namespace models {
 	    rukovodilac_ime?: string;
 	    broj_zadataka?: number;
 	    broj_clanova?: number;
+	    broj_aktivnih_clanova?: number;
+	    procenat_zavrsenosti?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Projekti(source);
@@ -196,6 +202,8 @@ export namespace models {
 	        this.rukovodilac_ime = source["rukovodilac_ime"];
 	        this.broj_zadataka = source["broj_zadataka"];
 	        this.broj_clanova = source["broj_clanova"];
+	        this.broj_aktivnih_clanova = source["broj_aktivnih_clanova"];
+	        this.procenat_zavrsenosti = source["procenat_zavrsenosti"];
 	    }
 	}
 	export class SkornjeAktivnosti {

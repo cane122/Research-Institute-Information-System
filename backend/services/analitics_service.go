@@ -49,6 +49,84 @@ func (s *AnalyticsService) ExecuteDocumentReport() (string, error) {
 	return "Document report executed successfully. Check database output.", nil
 }
 
+// GetUserDocumentSize retrieves total document size for a user using PL/SQL function
+func (s *AnalyticsService) GetUserDocumentSize(userID int) (float64, error) {
+	query := `SELECT ukupna_velicina_korisnika(:1) FROM DUAL`
+
+	var size float64
+	err := s.db.QueryRow(query, userID).Scan(&size)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get user document size: %w", err)
+	}
+
+	return size, nil
+}
+
+// GetDocumentReportResults retrieves the results from the document report procedure
+func (s *AnalyticsService) GetDocumentReportResults() ([]models.DocumentReportResult, error) {
+	// Query to get user document statistics
+	query := `
+		WITH korisnik_agregati AS (
+			SELECT 
+				k.korisnik_id,
+				k.korisnicko_ime,
+				k.ime || ' ' || k.prezime as puno_ime,
+				COUNT(DISTINCT d.dokument_id) as broj_kreiranih_dokumenata,
+				COUNT(DISTINCT vd.verzija_id) as broj_postavljenih_verzija,
+				SUM(NVL(vd.velicina_fajla_mb, 0)) as ukupna_velicina_mb,
+				COUNT(DISTINCT d.projekat_id) as broj_projekata
+			FROM Korisnici k
+			LEFT JOIN Dokumenti d ON k.korisnik_id = d.kreirao_korisnik_id
+			LEFT JOIN VerzijeDokumenata vd ON d.dokument_id = vd.dokument_id
+			LEFT JOIN Projekti p ON d.projekat_id = p.projekat_id
+			WHERE k.status = 'aktivan'
+			GROUP BY k.korisnik_id, k.korisnicko_ime, k.ime, k.prezime
+			HAVING COUNT(DISTINCT d.dokument_id) > 0
+		)
+		SELECT 
+			korisnik_id,
+			korisnicko_ime,
+			puno_ime,
+			broj_kreiranih_dokumenata,
+			broj_postavljenih_verzija,
+			ukupna_velicina_mb,
+			CASE 
+				WHEN broj_kreiranih_dokumenata = 0 THEN 0 
+				ELSE ROUND(ukupna_velicina_mb / broj_kreiranih_dokumenata, 2) 
+			END as prosecna_velicina_mb,
+			broj_projekata
+		FROM korisnik_agregati
+		ORDER BY broj_kreiranih_dokumenata DESC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query document report: %w", err)
+	}
+	defer rows.Close()
+
+	var results []models.DocumentReportResult
+	for rows.Next() {
+		var result models.DocumentReportResult
+		err := rows.Scan(
+			&result.KorisnikID,
+			&result.KorisnickoIme,
+			&result.PunoIme,
+			&result.BrojKreiranihDokumenata,
+			&result.BrojPostavljenihVerzija,
+			&result.UkupnaVelicinaMB,
+			&result.ProsecnaVelicinaMB,
+			&result.BrojProjekata,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan document report result: %w", err)
+		}
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
 // LogActivity logs a user activity
 func (s *AnalyticsService) LogActivity(korisnikID *int, req models.ActivityLogRequest) error {
 	// Use actual column names from database: korisnik_id, tip_aktivnosti, entitet_tip, entitet_id, opis
