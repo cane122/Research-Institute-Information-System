@@ -149,10 +149,11 @@ type Dokumenti struct {
 	NazivProjekta *string `json:"naziv_projekta,omitempty" db:"naziv_projekta"`
 	ImeKreirao    string  `json:"ime_kreirao,omitempty" db:"ime_kreirao"`
 	NazivFaze     *string `json:"naziv_faze,omitempty" db:"naziv_faze"`
-	BrojVerzija   int     `json:"broj_verzija,omitempty" db:"broj_verzija"`	
+	BrojVerzija   int     `json:"broj_verzija,omitempty" db:"broj_verzija"`
 	// PL/SQL function results
 	UkupnoDokumenata   int     `json:"ukupno_dokumenata,omitempty" db:"ukupno_dokumenata"`
-	ProsecnaVelicinaMB float64 `json:"prosecna_velicina_mb,omitempty" db:"prosecna_velicina_mb"`}
+	ProsecnaVelicinaMB float64 `json:"prosecna_velicina_mb,omitempty" db:"prosecna_velicina_mb"`
+}
 
 // VerzijeDokumenata represents document versions
 type VerzijeDokumenata struct {
