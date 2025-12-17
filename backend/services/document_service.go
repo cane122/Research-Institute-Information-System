@@ -178,7 +178,9 @@ func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumen
 		       d.poslednja_izmena,
 		       p.naziv_projekta, k.korisnicko_ime as ime_kreirao,
 		       COALESCE(f.naziv_faze, '') as naziv_faze,
-		       COALESCE(v.version_count, 0) as broj_verzija
+		       COALESCE(v.version_count, 0) as broj_verzija,
+		       broj_dokumenata_projekta(d.projekat_id) as ukupno_dokumenata,
+		       prosecna_velicina_dokumenata(d.projekat_id) as prosecna_velicina_mb
 		FROM dokumenti d
 		JOIN projekti p ON d.projekat_id = p.projekat_id
 		JOIN korisnici k ON d.kreirao_korisnik_id = k.korisnik_id
@@ -201,16 +203,20 @@ func (s *DocumentService) GetDocumentsByProject(projectID int) ([]models.Dokumen
 	var documents []models.Dokumenti
 	for rows.Next() {
 		var doc models.Dokumenti
+		var ukupnoDok int
+		var prosekMB float64
 		err := rows.Scan(
 			&doc.DokumentID, &doc.ProjekatID, &doc.NazivDokumenta, &doc.FolderID,
 			&doc.Opis, &doc.TipDokumenta, &doc.JezikDokumenta, &doc.RadniTokID,
 			&doc.TrenutnaFazaID, &doc.KreiraoKorisnikID, &doc.DatumaPostavke,
 			&doc.PoslednjaIzmena, &doc.NazivProjekta, &doc.ImeKreirao,
-			&doc.NazivFaze, &doc.BrojVerzija,
+			&doc.NazivFaze, &doc.BrojVerzija, &ukupnoDok, &prosekMB,
 		)
 		if err != nil {
 			return nil, err
 		}
+		doc.UkupnoDokumenata = ukupnoDok
+		doc.ProsecnaVelicinaMB = prosekMB
 		documents = append(documents, doc)
 	}
 

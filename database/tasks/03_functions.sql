@@ -30,3 +30,64 @@ BEGIN
     RETURN v_broj;
 END broj_aktivnih_clanova;
 /
+
+-- ============================================================================
+-- FUNKCIJE ZA DOKUMENTE (Document Management System)
+-- ============================================================================
+
+-- Function to count documents for a project
+CREATE OR REPLACE FUNCTION broj_dokumenata_projekta(p_projekat_id IN NUMBER)
+RETURN NUMBER
+IS
+    v_broj NUMBER := 0;
+BEGIN
+    SELECT COUNT(*) INTO v_broj
+    FROM Dokumenti
+    WHERE projekat_id = p_projekat_id;
+    
+    RETURN v_broj;
+END broj_dokumenata_projekta;
+/
+
+-- Function to calculate average document size for a project
+CREATE OR REPLACE FUNCTION prosecna_velicina_dokumenata(p_projekat_id IN NUMBER)
+RETURN NUMBER
+IS
+    v_prosek NUMBER := 0;
+BEGIN
+    SELECT COALESCE(AVG(vd.velicina_fajla_mb), 0) INTO v_prosek
+    FROM Dokumenti d
+    JOIN VerzijeDokumenata vd ON d.dokument_id = vd.dokument_id
+    WHERE d.projekat_id = p_projekat_id;
+    
+    RETURN ROUND(v_prosek, 2);
+END prosecna_velicina_dokumenata;
+/
+
+-- Function to count total document versions for a user
+CREATE OR REPLACE FUNCTION broj_verzija_korisnika(p_korisnik_id IN NUMBER)
+RETURN NUMBER
+IS
+    v_broj NUMBER := 0;
+BEGIN
+    SELECT COUNT(*) INTO v_broj
+    FROM VerzijeDokumenata vd
+    WHERE vd.postavio_korisnik_id = p_korisnik_id;
+    
+    RETURN v_broj;
+END broj_verzija_korisnika;
+/
+
+-- Function to calculate total storage used by user's documents (in MB)
+CREATE OR REPLACE FUNCTION ukupna_velicina_korisnika(p_korisnik_id IN NUMBER)
+RETURN NUMBER
+IS
+    v_velicina NUMBER := 0;
+BEGIN
+    SELECT COALESCE(SUM(vd.velicina_fajla_mb), 0) INTO v_velicina
+    FROM VerzijeDokumenata vd
+    WHERE vd.postavio_korisnik_id = p_korisnik_id;
+    
+    RETURN ROUND(v_velicina, 2);
+END ukupna_velicina_korisnika;
+/

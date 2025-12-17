@@ -36,6 +36,19 @@ func (s *AnalyticsService) ExecuteComplexReport() (string, error) {
 	return "Complex report executed successfully. Check database output.", nil
 }
 
+// ExecuteDocumentReport calls the PL/SQL procedure for document statistics report
+func (s *AnalyticsService) ExecuteDocumentReport() (string, error) {
+	// Call the stored procedure for document management report
+	query := `BEGIN izvestaj_dokumenata_korisnika; END;`
+
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute document report: %w", err)
+	}
+
+	return "Document report executed successfully. Check database output.", nil
+}
+
 // LogActivity logs a user activity
 func (s *AnalyticsService) LogActivity(korisnikID *int, req models.ActivityLogRequest) error {
 	// Use actual column names from database: korisnik_id, tip_aktivnosti, entitet_tip, entitet_id, opis
