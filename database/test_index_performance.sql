@@ -34,7 +34,7 @@ BEGIN
     
     -- BEZ indeksa
     v_start := SYSTIMESTAMP;
-    SELECT /*+ FULL(LogAktivnosti) */ COUNT(*) INTO v_count FROM LogAktivnosti WHERE korisnik_id = 2;
+    SELECT /*+ FULL(LogAktivnosti) */ COUNT(*) INTO v_count FROM SYSTEM.LogAktivnosti WHERE korisnik_id = 2;
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (1, 'LogAktivnosti - korisnik_id', 'FULL SCAN', v_time_ms, v_count);
@@ -42,7 +42,7 @@ BEGIN
     
     -- SA indeksom
     v_start := SYSTIMESTAMP;
-    SELECT /*+ INDEX(LogAktivnosti idx_log_korisnik) */ COUNT(*) INTO v_count FROM LogAktivnosti WHERE korisnik_id = 2;
+    SELECT /*+ INDEX(LogAktivnosti idx_log_korisnik) */ COUNT(*) INTO v_count FROM SYSTEM.LogAktivnosti WHERE korisnik_id = 2;
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (1, 'LogAktivnosti - korisnik_id', 'INDEX SCAN', v_time_ms, v_count);
@@ -64,7 +64,7 @@ BEGIN
     
     -- BEZ indeksa
     v_start := SYSTIMESTAMP;
-    SELECT /*+ FULL(Zadaci) */ COUNT(*) INTO v_count FROM Zadaci WHERE prioritet = 'Visok';
+    SELECT /*+ FULL(Zadaci) */ COUNT(*) INTO v_count FROM SYSTEM.Zadaci WHERE prioritet = 'Visok';
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (2, 'Zadaci - prioritet', 'FULL SCAN', v_time_ms, v_count);
@@ -72,7 +72,7 @@ BEGIN
     
     -- SA indeksom
     v_start := SYSTIMESTAMP;
-    SELECT /*+ INDEX(Zadaci idx_zadaci_prioritet) */ COUNT(*) INTO v_count FROM Zadaci WHERE prioritet = 'Visok';
+    SELECT /*+ INDEX(Zadaci idx_zadaci_prioritet) */ COUNT(*) INTO v_count FROM SYSTEM.Zadaci WHERE prioritet = 'Visok';
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (2, 'Zadaci - prioritet', 'INDEX SCAN', v_time_ms, v_count);
@@ -94,7 +94,7 @@ BEGIN
     
     -- BEZ indeksa
     v_start := SYSTIMESTAMP;
-    SELECT /*+ FULL(Dokumenti) */ COUNT(*) INTO v_count FROM Dokumenti WHERE tip_dokumenta = 'PDF';
+    SELECT /*+ FULL(Dokumenti) */ COUNT(*) INTO v_count FROM SYSTEM.Dokumenti WHERE tip_dokumenta = 'PDF';
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (3, 'Dokumenti - tip', 'FULL SCAN', v_time_ms, v_count);
@@ -102,7 +102,7 @@ BEGIN
     
     -- SA indeksom
     v_start := SYSTIMESTAMP;
-    SELECT /*+ INDEX(Dokumenti idx_dokumenti_tip) */ COUNT(*) INTO v_count FROM Dokumenti WHERE tip_dokumenta = 'PDF';
+    SELECT /*+ INDEX(Dokumenti idx_dokumenti_tip) */ COUNT(*) INTO v_count FROM SYSTEM.Dokumenti WHERE tip_dokumenta = 'PDF';
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (3, 'Dokumenti - tip', 'INDEX SCAN', v_time_ms, v_count);
@@ -124,7 +124,7 @@ BEGIN
     
     -- BEZ indeksa
     v_start := SYSTIMESTAMP;
-    SELECT /*+ FULL(cp) */ COUNT(*) INTO v_count FROM ClanoviProjekta cp JOIN Korisnici k ON cp.korisnik_id = k.korisnik_id;
+    SELECT /*+ FULL(cp) */ COUNT(*) INTO v_count FROM SYSTEM.ClanoviProjekta cp JOIN SYSTEM.Korisnici k ON cp.korisnik_id = k.korisnik_id;
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (4, 'ClanoviProjekta - JOIN', 'FULL SCAN', v_time_ms, v_count);
@@ -132,7 +132,7 @@ BEGIN
     
     -- SA indeksom
     v_start := SYSTIMESTAMP;
-    SELECT /*+ INDEX(cp idx_clanovi_projekta_korisnik) */ COUNT(*) INTO v_count FROM ClanoviProjekta cp JOIN Korisnici k ON cp.korisnik_id = k.korisnik_id;
+    SELECT /*+ INDEX(cp idx_clanovi_projekta_korisnik) */ COUNT(*) INTO v_count FROM SYSTEM.ClanoviProjekta cp JOIN SYSTEM.Korisnici k ON cp.korisnik_id = k.korisnik_id;
     v_end := SYSTIMESTAMP;
     v_time_ms := EXTRACT(SECOND FROM (v_end - v_start)) * 1000;
     INSERT INTO temp_perf_results VALUES (4, 'ClanoviProjekta - JOIN', 'INDEX SCAN', v_time_ms, v_count);
@@ -151,9 +151,13 @@ SELECT
     test_name AS "Test",
     MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) AS "Full Scan (ms)",
     MAX(CASE WHEN scan_type = 'INDEX SCAN' THEN execution_time_ms END) AS "Index Scan (ms)",
-    ROUND((MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) - 
-           MAX(CASE WHEN scan_type = 'INDEX SCAN' THEN execution_time_ms END)) / 
-           MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) * 100, 2) AS "Ubrzanje (%)",
+    CASE 
+        WHEN MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) > 0 THEN
+            ROUND((MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) - 
+                   MAX(CASE WHEN scan_type = 'INDEX SCAN' THEN execution_time_ms END)) / 
+                   MAX(CASE WHEN scan_type = 'FULL SCAN' THEN execution_time_ms END) * 100, 2)
+        ELSE 0
+    END AS "Ubrzanje (%)",
     MAX(num_rows) AS "Broj Redova"
 FROM temp_perf_results
 GROUP BY test_id, test_name
