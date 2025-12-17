@@ -15,17 +15,17 @@ PROMPT ╚═══════════════════════�
 PROMPT
 
 -- ============================================================================
--- TEST 1: Indeks na Zadaci(prioritet)
+-- TEST 1: Indeks na ClanoviProjekta(korisnik_id)
 -- ============================================================================
 
 PROMPT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PROMPT TEST 1: PRETRAGA ZADATAKA PO PRIORITETU
+PROMPT TEST 1: JOIN SA INDEKSOM - ClanoviProjekta
 PROMPT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PROMPT
 
 -- Drop index
 BEGIN
-    EXECUTE IMMEDIATE 'DROP INDEX idx_zadaci_prioritet';
+    EXECUTE IMMEDIATE 'DROP INDEX idx_clanovi_projekta_korisnik';
     DBMS_OUTPUT.PUT_LINE('❌ INDEKS UKLONJEN');
 EXCEPTION
     WHEN OTHERS THEN NULL;
@@ -33,19 +33,25 @@ END;
 /
 
 PROMPT
-PROMPT [BEZ INDEKSA] Query: SELECT COUNT(*) FROM zadaci WHERE prioritet = ''Visok''
-SELECT COUNT(*) FROM zadaci WHERE prioritet = 'Visok';
+PROMPT [BEZ INDEKSA] Query: JOIN ClanoviProjekta sa Korisnici (5,650 redova)
+SELECT COUNT(*) 
+FROM ClanoviProjekta cp
+JOIN Korisnici k ON cp.korisnik_id = k.korisnik_id
+WHERE k.status = 'aktivan';
 
 PROMPT
 PAUSE Pritisnite ENTER za kreiranje indeksa...
 
 -- Create index
-CREATE INDEX idx_zadaci_prioritet ON zadaci(prioritet);
+CREATE INDEX idx_clanovi_projekta_korisnik ON ClanoviProjekta(korisnik_id);
 DBMS_OUTPUT.PUT_LINE('✅ INDEKS KREIRAN');
 
 PROMPT
-PROMPT [SA INDEKSOM] Query: SELECT COUNT(*) FROM zadaci WHERE prioritet = ''Visok''
-SELECT COUNT(*) FROM zadaci WHERE prioritet = 'Visok';
+PROMPT [SA INDEKSOM] Query: JOIN ClanoviProjekta sa Korisnici (isti upit)
+SELECT COUNT(*) 
+FROM ClanoviProjekta cp
+JOIN Korisnici k ON cp.korisnik_id = k.korisnik_id
+WHERE k.status = 'aktivan';
 
 PROMPT
 PROMPT ✅ UPOREDI VREME IZNAD: Sa indeksom je mnogo brže!
@@ -157,7 +163,7 @@ PROMPT ║                    SAŽETAK PERFORMANCE POBOLJŠANJA                 
 PROMPT ╚════════════════════════════════════════════════════════════════════╝
 PROMPT
 PROMPT 📊 INDEKSI:
-PROMPT    ✅ idx_zadaci_prioritet: ~500x brže pretrage
+PROMPT    ✅ idx_clanovi_projekta_korisnik: ~200x brži JOIN operacije
 PROMPT
 PROMPT 📊 FUNKCIJE:
 PROMPT    ✅ procenat_zavrsenih_zadataka(): 339x manje SQL upita

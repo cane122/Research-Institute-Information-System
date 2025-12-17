@@ -177,40 +177,6 @@ func (s *ProjectService) GetAllProjects() ([]models.Projekti, error) {
 
 ## 3. 🚀 INDEKSI - Ubrzavaju SQL Upite Automatski
 
-### 📍 idx_zadaci_prioritet
-
-**Gde se kreira:** `database/tasks/04_indexes.sql`
-
-```sql
-CREATE INDEX idx_zadaci_prioritet ON Zadaci(prioritet);
-```
-
-**Gde se koristi:** Automatski u svim WHERE klauzulama na `prioritet` koloni
-
-#### Primer 1: Task Service
-
-**Lokacija:** `backend/services/task_service.go`
-
-```go
-func (s *TaskService) GetTasksByPriority(priority string) ([]models.Zadaci, error) {
-    // Ovaj upit AUTOMATSKI koristi idx_zadaci_prioritet indeks!
-    query := `
-        SELECT * FROM zadaci 
-        WHERE prioritet = :1    /* ← Indeks se aktivira ovde! */
-        ORDER BY datum_kreiran DESC
-    `
-    rows, err := s.db.Query(query, priority)
-    // ...
-}
-```
-
-**Performance:**
-```
-Bez indeksa: 578 zadataka → Full table scan → ~0.5s
-Sa indeksom:  578 zadataka → Index scan → ~0.001s (500x brže!)
-```
-
----
 
 ### 📍 idx_clanovi_projekta_korisnik  
 
@@ -371,56 +337,3 @@ CURSOR c_projekat_stats IS
     )
     SELECT * FROM projekat_agregati
 ```
-
-**Performance:**
-```
-❌ Bez CTE (4 odvojena upita):
-   4 upita × 113 projekata = 452 SQL poziva
-   Vreme: ~15s
-
-✅ Sa CTE i kursorom:
-   1 optimizovani upit sa JOIN-ovima
-   Vreme: ~0.1s (150x brže!)
-```
-
----
-
-## 🎯 SAŽETAK - Gde Šta Koristiti
-
-| Komponenta | Gde se definiše | Gde se koristi u Go | Performance benefit |
-|------------|-----------------|---------------------|---------------------|
-| **Trigeri** | `database/tasks/02_triggers.sql` | Automatski iz baze (nema Go koda!) | Smanjuje kod za 50+ linija |
-| **procenat_zavrsenih_zadataka()** | `database/tasks/03_functions.sql` | `backend/services/project_service.go:29` | **250x brže** |
-| **broj_aktivnih_clanova()** | `database/tasks/03_functions.sql` | `backend/services/project_service.go:28` | **250x brže** |
-| **idx_zadaci_prioritet** | `database/tasks/04_indexes.sql` | Automatski u WHERE klauzulama | **500x brže** |
-| **idx_clanovi_projekta_korisnik** | `database/tasks/04_indexes.sql` | Automatski u JOIN operacijama | **200x brže** |
-| **kompleksan_izvestaj_projekata** | `database/tasks/05_reports.sql` | `backend/services/analitics_service.go:27` | **150x brže** |
-
----
-
-## 📁 FAJLOVI ZA ODBRANU
-
-```
-database/
-├── tasks/
-│   ├── 02_triggers.sql          ← 7 trigera
-│   ├── 03_functions.sql         ← 2 funkcije + 1 procedura
-│   ├── 04_indexes.sql           ← 3 indeksa
-│   └── 05_reports.sql           ← Kompleksan izveštaj
-├── performance_test.sql         ← Performance testovi
-├── comprehensive_test.sql       ← Kompletni testovi
-└── add_test_data_simple.sql     ← Masovni unos podataka
-
-backend/
-├── models/
-│   └── models.go                ← Linija 54-68 (Projekti model)
-└── services/
-    ├── project_service.go       ← Linija 22-63 (Koristi funkcije!)
-    └── analitics_service.go     ← Linija 27-36 (Poziva proceduru!)
-```
-
----
-
-## ✅ SPREMNO ZA ODBRANU!
-
-Sve PL/SQL komponente su implementirane, integrisane u Go kod, i daju **vidljivo poboljšanje performansi** od **150x do 500x** sa trenutnih 578 zadataka i 113 projekata!
