@@ -70,6 +70,10 @@ export function GetDocumentPermissions(arg1) {
   return window['go']['main']['App']['GetDocumentPermissions'](arg1);
 }
 
+export function GetDocumentReportResults() {
+  return window['go']['main']['App']['GetDocumentReportResults']();
+}
+
 export function GetDocumentStatistics() {
   return window['go']['main']['App']['GetDocumentStatistics']();
 }
@@ -100,6 +104,14 @@ export function GetRecentActivity(arg1) {
 
 export function GetTopContributors(arg1) {
   return window['go']['main']['App']['GetTopContributors'](arg1);
+}
+
+export function GetUserDocumentCount() {
+  return window['go']['main']['App']['GetUserDocumentCount']();
+}
+
+export function GetUserDocumentSize() {
+  return window['go']['main']['App']['GetUserDocumentSize']();
 }
 
 export function GetUserProjects() {

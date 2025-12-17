@@ -72,6 +72,32 @@ export namespace models {
 	        this.moze_brisati = source["moze_brisati"];
 	    }
 	}
+	export class DocumentReportResult {
+	    korisnik_id: number;
+	    korisnicko_ime: string;
+	    puno_ime: string;
+	    broj_kreiranih_dokumenata: number;
+	    broj_postavljenih_verzija: number;
+	    ukupna_velicina_mb: number;
+	    prosecna_velicina_mb: number;
+	    broj_projekata: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DocumentReportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.korisnik_id = source["korisnik_id"];
+	        this.korisnicko_ime = source["korisnicko_ime"];
+	        this.puno_ime = source["puno_ime"];
+	        this.broj_kreiranih_dokumenata = source["broj_kreiranih_dokumenata"];
+	        this.broj_postavljenih_verzija = source["broj_postavljenih_verzija"];
+	        this.ukupna_velicina_mb = source["ukupna_velicina_mb"];
+	        this.prosecna_velicina_mb = source["prosecna_velicina_mb"];
+	        this.broj_projekata = source["broj_projekata"];
+	    }
+	}
 	export class Dokumenti {
 	    dokument_id: number;
 	    projekat_id?: number;

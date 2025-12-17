@@ -62,6 +62,19 @@ func (s *AnalyticsService) GetUserDocumentSize(userID int) (float64, error) {
 	return size, nil
 }
 
+// GetUserDocumentCount retrieves total number of documents for a user
+func (s *AnalyticsService) GetUserDocumentCount(userID int) (int, error) {
+	query := `SELECT COUNT(*) FROM Dokumenti WHERE kreirao_korisnik_id = :1`
+
+	var count int
+	err := s.db.QueryRow(query, userID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get user document count: %w", err)
+	}
+
+	return count, nil
+}
+
 // GetDocumentReportResults retrieves the results from the document report procedure
 func (s *AnalyticsService) GetDocumentReportResults() ([]models.DocumentReportResult, error) {
 	// Query to get user document statistics

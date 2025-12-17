@@ -37,6 +37,8 @@ export function GetDocumentByID(arg1:number):Promise<models.Dokumenti>;
 
 export function GetDocumentPermissions(arg1:number):Promise<Array<models.DocumentPermissionResponse>>;
 
+export function GetDocumentReportResults():Promise<Array<models.DocumentReportResult>>;
+
 export function GetDocumentStatistics():Promise<models.StatistikaDokumenata>;
 
 export function GetDocumentTags(arg1:number):Promise<Array<models.Tagovi>>;
@@ -52,6 +54,10 @@ export function GetDocumentsForUser():Promise<Array<models.Dokumenti>>;
 export function GetRecentActivity(arg1:number):Promise<Array<models.SkornjeAktivnosti>>;
 
 export function GetTopContributors(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function GetUserDocumentCount():Promise<number>;
+
+export function GetUserDocumentSize():Promise<number>;
 
 export function GetUserProjects():Promise<Array<models.Projekti>>;
 

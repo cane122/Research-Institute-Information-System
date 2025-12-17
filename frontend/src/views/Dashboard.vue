@@ -21,8 +21,8 @@
         
         <div class="stat-card documents">
           <div class="stat-content">
-            <h3>{{ stats.documents }}</h3>
-            <p>Dokumenata u sistemu</p>
+            <h3>{{ userDocuments }}</h3>
+            <p>Mojih dokumenata</p>
           </div>
           <div class="stat-icon">📄</div>
         </div>
@@ -156,7 +156,7 @@
 import { ref, onMounted } from 'vue'
 import Layout from '../components/Layout.vue'
 import { useAuthStore } from '../stores/auth'
-import { GetUserDocumentSize } from '../../wailsjs/go/main/App'
+import { GetUserDocumentSize, GetUserDocumentCount } from '../../wailsjs/go/main/App'
 
 const authStore = useAuthStore()
 
@@ -169,6 +169,7 @@ const stats = ref({
 })
 
 const userStorage = ref(0)
+const userDocuments = ref(0)
 
 const recentActivities = ref([
   {

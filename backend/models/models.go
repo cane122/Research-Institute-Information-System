@@ -380,14 +380,14 @@ type SkornjeAktivnosti struct {
 
 // DocumentReportResult represents the result of the complex document report
 type DocumentReportResult struct {
-	KorisnikID                int     `json:"korisnik_id" db:"korisnik_id"`
-	KorisnickoIme             string  `json:"korisnicko_ime" db:"korisnicko_ime"`
-	PunoIme                   string  `json:"puno_ime" db:"puno_ime"`
-	BrojKreiranihDokumenata   int     `json:"broj_kreiranih_dokumenata" db:"broj_kreiranih_dokumenata"`
-	BrojPostavljenihVerzija   int     `json:"broj_postavljenih_verzija" db:"broj_postavljenih_verzija"`
-	UkupnaVelicinaMB          float64 `json:"ukupna_velicina_mb" db:"ukupna_velicina_mb"`
-	ProsecnaVelicinaMB        float64 `json:"prosecna_velicina_mb" db:"prosecna_velicina_mb"`
-	BrojProjekata             int     `json:"broj_projekata" db:"broj_projekata"`
+	KorisnikID              int     `json:"korisnik_id" db:"korisnik_id"`
+	KorisnickoIme           string  `json:"korisnicko_ime" db:"korisnicko_ime"`
+	PunoIme                 string  `json:"puno_ime" db:"puno_ime"`
+	BrojKreiranihDokumenata int     `json:"broj_kreiranih_dokumenata" db:"broj_kreiranih_dokumenata"`
+	BrojPostavljenihVerzija int     `json:"broj_postavljenih_verzija" db:"broj_postavljenih_verzija"`
+	UkupnaVelicinaMB        float64 `json:"ukupna_velicina_mb" db:"ukupna_velicina_mb"`
+	ProsecnaVelicinaMB      float64 `json:"prosecna_velicina_mb" db:"prosecna_velicina_mb"`
+	BrojProjekata           int     `json:"broj_projekata" db:"broj_projekata"`
 }
 
 // =============================================================================

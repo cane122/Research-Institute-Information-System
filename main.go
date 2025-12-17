@@ -659,6 +659,19 @@ func (a *App) GetUserDocumentSize() (float64, error) {
 	return a.analyticsService.GetUserDocumentSize(a.currentUser.KorisnikID)
 }
 
+// GetUserDocumentCount retrieves total number of documents for current user
+func (a *App) GetUserDocumentCount() (int, error) {
+	if a.analyticsService == nil {
+		return 0, errors.New("sistem nije povezan sa bazom podataka")
+	}
+
+	if a.currentUser == nil {
+		return 0, errors.New("korisnik nije prijavljen")
+	}
+
+	return a.analyticsService.GetUserDocumentCount(a.currentUser.KorisnikID)
+}
+
 // GetDocumentReportResults retrieves results from the complex document report
 func (a *App) GetDocumentReportResults() ([]models.DocumentReportResult, error) {
 	if a.analyticsService == nil {
